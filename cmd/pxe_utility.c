@@ -36,6 +36,7 @@ struct hw_config
 	int uart4;
 	int spi1;
 	int spi2;
+	int i2c2;
 	int i2c6;
 	int i2c7;
 	int dts_overlay;
@@ -168,6 +169,22 @@ static unsigned long get_value(char *text, struct hw_config *hw_conf)
 		else if(memcmp(text + i, "off", 3) == 0)
 		{
 			hw_conf->spi2 = 0;
+			i = i + 3;
+		}
+		else
+			goto invalid_line;
+	}
+	else if(memcmp(text, "i2c2=",  5) == 0)
+	{
+		i = 5;
+		if(memcmp(text + i, "on", 2) == 0)
+		{
+			hw_conf->i2c2 = 1;
+			i = i + 2;
+		}
+		else if(memcmp(text + i, "off", 3) == 0)
+		{
+			hw_conf->i2c2 = 0;
 			i = i + 3;
 		}
 		else
@@ -341,14 +358,14 @@ void parse_hw_config(cmd_tbl_t *cmdtp, struct hw_config *hw_conf)
 		if(count > 0)
 		{
 			offset = offset + count;
-			printf("find comment = %ld\n", offset);
+			//printf("find comment = %ld\n", offset);
 			continue;
 		}
 		count = hw_skip_line((char *)(file_addr + offset));
 		if(count > 0)
 		{
 			offset = offset + count;
-			printf("find line %ld\n", offset);
+			//printf("find line %ld\n", offset);
 			continue;
 		}
 		count = hw_parse_property((char *)(file_addr + offset), hw_conf);
@@ -358,7 +375,7 @@ void parse_hw_config(cmd_tbl_t *cmdtp, struct hw_config *hw_conf)
 			continue;
 		}
 	}
-	printf("offset = %ld\n", offset);
+	//printf("offset = %ld\n", offset);
 end:
 	hw_conf->valid = valid;
 }

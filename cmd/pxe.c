@@ -50,6 +50,7 @@ struct hw_config
 	int uart4;
 	int spi1;
 	int spi2;
+	int i2c2;
 	int i2c6;
 	int i2c7;
 	int dts_overlay;
@@ -939,6 +940,21 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 		set_hw_property(working_fdt, "/i2c@ff150000", "status", "disabled", 9);
 	}
 
+	if(hw_conf->i2c2 == VALUE_ON)
+	{
+		set_hw_property(working_fdt, "/i2c@ff120000", "status", "okay", 5);
+	}
+	else if(hw_conf->i2c2 == VALUE_OFF)
+	{
+		set_hw_property(working_fdt, "/i2c@ff120000", "status", "disabled", 9);
+	}
+	else
+	{
+		//default disable
+		set_hw_property(working_fdt, "/i2c@ff120000", "status", "disabled", 9);
+	}
+
+
 	if(hw_conf->i2c7 == VALUE_ON)
 	{
 		set_hw_property(working_fdt, "/i2c@ff160000", "status", "okay", 5);
@@ -1006,6 +1022,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 		printf("hw_conf.uart4 = %d\n", hw_conf.uart4);
 		printf("hw_conf.spi1 = %d\n", hw_conf.spi1);
 		printf("hw_conf.spi2 = %d\n", hw_conf.spi2);
+		printf("hw_conf.i2c2 = %d\n", hw_conf.i2c2);
 		printf("hw_conf.i2c6 = %d\n", hw_conf.i2c6);
 		printf("hw_conf.i2c7 = %d\n", hw_conf.i2c7);
 		if(hw_conf.dts_overlay)
@@ -1196,24 +1213,15 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 	buf = map_sysmem(kernel_addr, 0);
 	/* Try bootm for legacy and FIT format image */
 	if (genimg_get_format(buf) != IMAGE_FORMAT_INVALID)
-	{
 		do_bootm(cmdtp, 0, bootm_argc, bootm_argv);
-		printf("### [sysboot] Try bootm for legacy and FIT format image\n");
-	}
 #ifdef CONFIG_CMD_BOOTI
 	/* Try booting an AArch64 Linux kernel image */
 	else
-	{
 		do_booti(cmdtp, 0, bootm_argc, bootm_argv);
-		printf("### [sysboot] Try booting an AArch64 Linux kernel image\n");
-	}
 #elif defined(CONFIG_CMD_BOOTZ)
 	/* Try booting a Image */
 	else
-	{
 		do_bootz(cmdtp, 0, bootm_argc, bootm_argv);
-		printf("### [sysboot] Try booting a Image\n");
-	}
 #endif
 	unmap_sysmem(buf);
 	return 1;
@@ -2057,14 +2065,6 @@ U_BOOT_CMD(
  */
 static int do_sysboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	printf("### [sysboot] Welcome to sysboot\n");
-	printf("### [sysboot] argc = %d\n", argc);
-	printf("### [sysboot] cmdtp.name = %s\n", cmdtp->name);
-	printf("### [sysboot] cmdtp.repeatable = %d\n", cmdtp->repeatable);
-	printf("### [sysboot] cmdtp.maxargs = %d\n", cmdtp->maxargs);
-	printf("### [sysboot] cmdtp.usage = %s\n", cmdtp->usage);
-	printf("### [sysboot] cmdtp.help = %s\n", cmdtp->help);
-
 	unsigned long pxefile_addr_r;
 	struct pxe_menu *cfg;
 	char *pxefile_addr_str;
@@ -2090,14 +2090,14 @@ static int do_sysboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		pxefile_addr_str = argv[4];
 	}
 
-	printf("### [sysboot] pxefile_addr_str = %s\n", pxefile_addr_str);
+	printf("pxefile_addr_str = %s\n", pxefile_addr_str);
 	if (argc < 6)
 		filename = env_get("bootfile");
 	else {
 		filename = argv[5];
 		env_set("bootfile", filename);
 	}
-	printf("### [sysboot] bootfile = %s\n", filename);
+	printf("bootfile = %s\n", filename);
 
 	if (strstr(argv[3], "ext2"))
 		do_getfile = do_get_ext2;
@@ -2111,12 +2111,6 @@ static int do_sysboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 	fs_argv[1] = argv[1];
 	fs_argv[2] = argv[2];
-
-	printf("### [sysboot] argv[1] = %s\n", argv[1]);
-	printf("### [sysboot] argv[2] = %s\n", argv[2]);
-	printf("### [sysboot] argv[3] = %s\n", argv[3]);
-	printf("### [sysboot] argv[4] = %s\n", argv[4]);
-	printf("### [sysboot] argv[5] = %s\n", argv[5]);
 
 	if (strict_strtoul(pxefile_addr_str, 16, &pxefile_addr_r) < 0) {
 		printf("Invalid pxefile address: %s\n", pxefile_addr_str);
@@ -2134,11 +2128,6 @@ static int do_sysboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		printf("Error parsing config file\n");
 		return 1;
 	}
-
-	printf("### [sysboot] ((struct pxe_menu)cfg).title = %s\n", cfg->title);
-	printf("### [sysboot] ((struct pxe_menu)cfg).default_label = %s\n", cfg->default_label);
-	printf("### [sysboot] ((struct pxe_menu)cfg).timeout = %d\n", cfg->timeout);
-	printf("### [sysboot] ((struct pxe_menu)cfg).prompt = %d\n", cfg->prompt);
 
 	if (prompt)
 		cfg->prompt = 1;
