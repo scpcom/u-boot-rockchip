@@ -38,8 +38,27 @@ const char *pxe_default_paths[] = {
 
 static bool is_pxe;
 
+#define DTS_OVERLAY_PROPERTY_LENGTH 10
+#define DTS_OVERLAY_PREFIX "/overlays/"
+#define DTS_PREFIX_LENGTH 10
+
 #define MAX_OVERLAY_NAME_LENGTH 128
-#define MAX_PARAM_NAME_LENGTH 128
+#define MAX_DTS_OVERLAY_NUMBER 16
+//#define MAX_DTBO_PARAM_NUNBER 16
+
+//struct dtbo_param_array
+//{
+//	int dtbo_param_number;
+//	char dtbo_param_name[MAX_OVERLAY_NAME_LENGTH];
+//}
+
+struct dts_overlay_array
+{
+	int dtbo_number; //0 to (MAX_OVERLAY_NAME_LENGTH-1)
+	char dtbo_name[MAX_OVERLAY_NAME_LENGTH];
+//	int dtbo_param:1; // flag: 0 1
+//	struct dtbo_param_array dtbo_param_name[MAX_DTBO_PARAM_NUNBER];
+};
 
 struct hw_config
 {
@@ -53,10 +72,8 @@ struct hw_config
 	int i2c2;
 	int i2c6;
 	int i2c7;
-	int dts_overlay;
-	char dts_overlay_name[MAX_OVERLAY_NAME_LENGTH];
-	int dts_param;
-	char dts_param_name[MAX_PARAM_NAME_LENGTH];
+	struct dts_overlay_array dts_overlay[MAX_DTS_OVERLAY_NUMBER];
+	int dts_overlay_count;
 };
 
 extern void parse_hw_config(cmd_tbl_t *cmdtp, struct hw_config *hw_conf);
@@ -632,7 +649,7 @@ static int set_hw_property(struct fdt_header *working_fdt, char *path, char *pro
 	int offset;
 	int ret;
 
-	printf("set_hw_property: %s %s\n", path, property);
+	//printf("set_hw_property: %s %s\n", path, property);
 	offset = fdt_path_offset (working_fdt, path);
 	if (offset < 0)
 	{
@@ -766,89 +783,23 @@ fail:
 }
 #endif
 
-static void set_dts_param(struct fdt_header *working_fdt, char *property, char *value )
-{
-	printf("set dts param: property=%s, value=%s\n", property, value);
-}
-
-static void handle_dts_param(struct fdt_header *working_fdt, struct hw_config *hw_conf)
-{
-	char property[MAX_PARAM_NAME_LENGTH];
-	char value[MAX_PARAM_NAME_LENGTH];
-	int i = 0, j = 0, length;
-
-	while (j < MAX_PARAM_NAME_LENGTH)
-	{
-		while(*(hw_conf->dts_param_name + j) != 0x00)
-		{
-			if(*(hw_conf->dts_param_name + j) == '=')
-				break;
-			j++;
-		}
-
-		length = j - i;
-
-		if(length && length < MAX_PARAM_NAME_LENGTH)
-		{
-			memcpy(property, hw_conf->dts_param_name, length);
-			property[length] = 0x00;
-		}
-		else
-		{
-			printf("Invalid dts parameter property\n");
-			goto err_out;
-		}
-
-		i = j = length + 1; 
-	
-		while(*(hw_conf->dts_param_name + j) != 0x00)
-	        {
-			if(*(hw_conf->dts_param_name + j) == ',')
-				break;
-			j++;
-		}
-
-		length = j - i;
-
-		if(length && length < MAX_PARAM_NAME_LENGTH)
-		{
-			memcpy(value, hw_conf->dts_param_name + i, length);
-			value[length] = 0x00;
-		}
-	        else
-		{
-			printf("Invalid dts parameter value\n");
-			goto err_out;
-		}
-
-		set_dts_param(working_fdt, property, value);
-
-		if (*(hw_conf->dts_param_name + j) == 0x00)
-			break;
-	
-		i = j = (j + 1);
-	}
-
-	return;
-
-err_out:
-
-	printf("handle_dts_parameter failed!\n");	
-}
-
 static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, struct hw_config *hw_conf)
 {
+	int i = 0;
 
 	if(working_fdt == NULL)
 		return;
 #ifdef CONFIG_OF_LIBFDT_OVERLAY
-	if(hw_conf->dts_overlay)
+	if(hw_conf->dts_overlay_count)
 	{
-		if(merge_dts_overlay(cmdtp, working_fdt, hw_conf->dts_overlay_name) < 0)
+		for (i = 0; i < hw_conf->dts_overlay_count; i++)
 		{
-			printf("Can not merge dts overlay\n");
-			return;
+			if(merge_dts_overlay(cmdtp, working_fdt, hw_conf->dts_overlay[i].dtbo_name) < 0)
+			{
+				printf("Can not merge dts overlay\n");
+				return;
 		}
+	}
 	}
 #endif
 
@@ -968,11 +919,6 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 		//default disable
 		set_hw_property(working_fdt, "/i2c@ff160000", "status", "disabled", 9);
 	}
-
-	if(hw_conf->dts_param)
-	{
-		handle_dts_param(working_fdt, hw_conf);
-	}
 }
 
 /*
@@ -1001,6 +947,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 	ulong kernel_addr;
 	void *buf;
 	struct hw_config hw_conf;
+	int i;
 
 	memset(&hw_conf, 0, sizeof(struct hw_config));
 	hw_conf.pwm0 = NO_DEFINE;
@@ -1009,6 +956,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 	hw_conf.uart4 = NO_DEFINE;
 	hw_conf.spi1 = NO_DEFINE;
 	hw_conf.spi2 = NO_DEFINE;
+	hw_conf.i2c2 = NO_DEFINE;
 	hw_conf.i2c6 = NO_DEFINE;
 	hw_conf.i2c7 = NO_DEFINE;
 
@@ -1025,13 +973,14 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 		printf("hw_conf.i2c2 = %d\n", hw_conf.i2c2);
 		printf("hw_conf.i2c6 = %d\n", hw_conf.i2c6);
 		printf("hw_conf.i2c7 = %d\n", hw_conf.i2c7);
-		if(hw_conf.dts_overlay)
+		printf("hw_conf.dts_overlay_count = %d\n", hw_conf.dts_overlay_count);
+		if(hw_conf.dts_overlay_count)
 		{
-			printf("hw_conf.dtoverlay_name = %s\n", hw_conf.dts_overlay_name);
-		}
-		if(hw_conf.dts_param)
-		{
-			printf("hw_conf.dtparam_name = %s\n", hw_conf.dts_param_name);
+			for (i = 0; i < hw_conf.dts_overlay_count; i++)
+			{
+				printf("hw_conf.dts_overlay[%d] = %s\n", i, \
+								hw_conf.dts_overlay[i].dtbo_name);
+			}
 		}
 	}
 

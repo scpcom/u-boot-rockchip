@@ -22,10 +22,23 @@
 #define DTS_OVERLAY_PREFIX "/overlays/"
 #define DTS_PREFIX_LENGTH 10
 
-#define DTS_PARAM_PROPERTY_LENGTH 8
-#define MAX_PARAM_NAME_LENGTH 128
-
 #define MAX_OVERLAY_NAME_LENGTH 128
+#define MAX_DTS_OVERLAY_NUMBER 16
+//#define MAX_DTBO_PARAM_NUNBER 16
+
+//struct dtbo_param_array
+//{
+//	int dtbo_param_number;
+//	char dtbo_param_name[MAX_OVERLAY_NAME_LENGTH];
+//}
+
+struct dts_overlay_array
+{
+	int dtbo_number; //0 to (MAX_OVERLAY_NAME_LENGTH-1)
+	char dtbo_name[MAX_OVERLAY_NAME_LENGTH];
+//	int dtbo_param:1; // flag: 0 1
+//	struct dtbo_param_array dtbo_param_name[MAX_DTBO_PARAM_NUNBER];
+};
 
 struct hw_config
 {
@@ -39,10 +52,8 @@ struct hw_config
 	int i2c2;
 	int i2c6;
 	int i2c7;
-	int dts_overlay;
-	char dts_overlay_name[MAX_OVERLAY_NAME_LENGTH];
-	int dts_param;
-	char dts_param_name[MAX_PARAM_NAME_LENGTH];
+	struct dts_overlay_array dts_overlay[MAX_DTS_OVERLAY_NUMBER];
+	int dts_overlay_count;
 };
 
 extern char *from_env(const char *envvar);
@@ -224,6 +235,7 @@ static unsigned long get_value(char *text, struct hw_config *hw_conf)
 	}
 	else if(memcmp(text, "dtoverlay=",  10) == 0)
 	{
+		static int dtbo_count = 0;
 		int name_length;
 		int j = DTS_OVERLAY_PROPERTY_LENGTH; //dts_overlay file offset
 		i = j;
@@ -238,50 +250,30 @@ static unsigned long get_value(char *text, struct hw_config *hw_conf)
 		name_length = j - i;
 		i = j;
 
-		printf("dts_overlay name length = %d\n", name_length);
+		//printf("dts_overlay name length = %d\n", name_length);
 		if(name_length && name_length < MAX_OVERLAY_NAME_LENGTH)
 		{
-			memcpy(hw_conf->dts_overlay_name, DTS_OVERLAY_PREFIX,
-				DTS_PREFIX_LENGTH);
-			memcpy(hw_conf->dts_overlay_name + DTS_PREFIX_LENGTH,
-				text + DTS_OVERLAY_PROPERTY_LENGTH, name_length);
-			memcpy(hw_conf->dts_overlay_name + DTS_PREFIX_LENGTH + name_length,
-				".dtbo", 5);
-			hw_conf->dts_overlay_name[DTS_PREFIX_LENGTH + name_length + 5] = 0x00;
-			printf("dtoverlay name = %s\n", hw_conf->dts_overlay_name);
-			hw_conf->dts_overlay = 1;
+			if(dtbo_count < MAX_DTS_OVERLAY_NUMBER)
+			{
+				hw_conf->dts_overlay[dtbo_count].dtbo_number = dtbo_count;
+				memcpy(hw_conf->dts_overlay[dtbo_count].dtbo_name, DTS_OVERLAY_PREFIX,
+					DTS_PREFIX_LENGTH);
+				memcpy(hw_conf->dts_overlay[dtbo_count].dtbo_name + DTS_PREFIX_LENGTH,
+					text + DTS_OVERLAY_PROPERTY_LENGTH, name_length);
+				memcpy(hw_conf->dts_overlay[dtbo_count].dtbo_name + DTS_PREFIX_LENGTH + name_length,
+					".dtbo", 5);
+				hw_conf->dts_overlay[dtbo_count].dtbo_name[DTS_PREFIX_LENGTH + name_length + 5] = 0x00;
+				printf("dtoverlay number: %d, name:%s \n", \
+								hw_conf->dts_overlay[dtbo_count].dtbo_number, \
+								hw_conf->dts_overlay[dtbo_count].dtbo_name);
+				dtbo_count++;
+				hw_conf->dts_overlay_count = dtbo_count;
+				//printf("The number of valid dtbo files : %d\n", hw_conf->dts_overlay_count);
+			}
 		}
 		else
 		{
 			printf("Invalid dts overlay file name\n");
-		}
-	}
-	else if(memcmp(text, "dtparam=",  8) == 0)
-	{
-		int param_length;
-		int j = DTS_PARAM_PROPERTY_LENGTH;
-		i = j;
-
-		while(*(text + j) != 0x00)
-		{
-			if(*(text + j) == 0x0a)
-				break;
-			j++;
-		}
-
-		param_length = j - i;
-		i = j;
-
-		if(param_length && param_length < MAX_PARAM_NAME_LENGTH)
-		{
-			memcpy(hw_conf->dts_param_name, text + DTS_PARAM_PROPERTY_LENGTH, param_length);
-			hw_conf->dts_param_name[param_length] = 0x00;
-			printf("dtparam = %s\n", hw_conf->dts_param_name);
-			hw_conf->dts_param = 1;
-		}
-		else
-		{
-			printf("Invalid dts parameter\n");
 		}
 	}
 	else
@@ -348,7 +340,7 @@ void parse_hw_config(cmd_tbl_t *cmdtp, struct hw_config *hw_conf)
 	if (strict_strtoul(conf_size, 16, &size) < 0)
 		goto end;
 	valid = 1;
-	printf("hw_conf size = %ld\n", size);
+	//printf("hw_conf size = %ld\n", size);
 
 	*((char *)file_addr + size) = 0x00;
 
