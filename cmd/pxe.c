@@ -59,7 +59,7 @@ struct dts_overlay_array
 //	int dtbo_param:1; // flag: 0 1
 //	struct dtbo_param_array dtbo_param_name[MAX_DTBO_PARAM_NUNBER];
 };
-
+#if CONFIG_OF_LIBFDT_OVERLAY
 struct hw_config
 {
 	int valid;
@@ -77,7 +77,7 @@ struct hw_config
 };
 
 extern void parse_hw_config(cmd_tbl_t *cmdtp, struct hw_config *hw_conf);
-
+#endif
 /*
  * Like env_get, but prints an error if envvar isn't defined in the
  * environment.  It always returns what env_get does, so it can be used in
@@ -643,7 +643,7 @@ static int label_localboot(struct pxe_label *label)
 
 	return run_command_list(localcmd, strlen(localcmd), 0);
 }
-
+#ifdef CONFIG_OF_LIBFDT_OVERLAY
 static int set_hw_property(struct fdt_header *working_fdt, char *path, char *property, char *value, int length)
 {
 	int offset;
@@ -699,7 +699,6 @@ static struct fdt_header *resize_working_fdt(void)
 	return working_fdt;
 }
 
-#ifdef CONFIG_OF_LIBFDT_OVERLAY
 static int fdt_valid(struct fdt_header **blobp)
 {
 	const void *blob = *blobp;
@@ -781,7 +780,6 @@ fail:
 	printf("Can't load dts overlay\n");
 	return -1;
 }
-#endif
 
 static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, struct hw_config *hw_conf)
 {
@@ -789,7 +787,7 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 
 	if(working_fdt == NULL)
 		return;
-#ifdef CONFIG_OF_LIBFDT_OVERLAY
+
 	if(hw_conf->dts_overlay_count)
 	{
 		for (i = 0; i < hw_conf->dts_overlay_count; i++)
@@ -798,10 +796,9 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 			{
 				printf("Can not merge dts overlay\n");
 				return;
+			}
 		}
 	}
-	}
-#endif
 
 	if(hw_conf->pwm0 == VALUE_ON)
 	{
@@ -920,6 +917,7 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 		set_hw_property(working_fdt, "/i2c@ff160000", "status", "disabled", 9);
 	}
 }
+#endif
 
 /*
  * Boot according to the contents of a pxe_label.
@@ -946,6 +944,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 	int len = 0;
 	ulong kernel_addr;
 	void *buf;
+#ifdef CONFIG_OF_LIBFDT_OVERLAY
 	struct hw_config hw_conf;
 	int i;
 
@@ -983,7 +982,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 			}
 		}
 	}
-
+#endif
 	label_print(label);
 
 	label->attempted = 1;
@@ -1128,7 +1127,9 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 		}
 
 		if (fdtfile) {
+#ifdef CONFIG_OF_LIBFDT_OVERLAY
 			struct fdt_header *working_fdt;
+#endif
 			int err = get_relfile_envaddr(cmdtp, fdtfile, "fdt_addr_r");
 			free(fdtfilefree);
 			if (err < 0) {
@@ -1136,6 +1137,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 						label->name);
 				return 1;
 			}
+#ifdef CONFIG_OF_LIBFDT_OVERLAY
 			working_fdt = resize_working_fdt();
 			if(working_fdt != NULL)
 			{
@@ -1144,6 +1146,7 @@ static int label_boot(cmd_tbl_t *cmdtp, struct pxe_label *label)
 					handle_hw_conf(cmdtp, working_fdt, &hw_conf);
 				}
 			}
+#endif
 		} else {
 			bootm_argv[3] = NULL;
 		}
