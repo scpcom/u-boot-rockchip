@@ -179,7 +179,19 @@
 	cpu-supply = <&vdd_cpu_l>;
 };
 
+&display_subsystem {
+	status = "okay";
+};
+
 &emmc_phy {
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+       status = "disabled";
+};
+
+&hdmi_in_vopb {
 	status = "okay";
 };
 
@@ -546,6 +558,26 @@
 	vbus-supply = <&vcc5v0_host>;
 	status = "okay";
 	maximum-speed = "high-speed";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&route_edp {
+	status = "disabled";
+};
+
+&route_hdmi {
+	status = "okay";
 };
 
 &spi1 {
