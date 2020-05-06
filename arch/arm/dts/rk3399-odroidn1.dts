@@ -152,6 +152,10 @@
 	cpu-supply = <&vdd_cpu_b>;
 };
 
+&uart2 {
+	status = "okay";
+};
+
 &emmc_phy {
 	status = "okay";
 };
