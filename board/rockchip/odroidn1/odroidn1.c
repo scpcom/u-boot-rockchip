@@ -16,13 +16,19 @@
 #include <usb.h>
 #include <dwc3-uboot.h>
 #include <spl.h>
+#include <linux/crc8.h>
+#include <crc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #define RK3399_CPUID_OFF  0x7
 #define RK3399_CPUID_LEN  0x10
 
+#define CPUID_SIZE	RK3399_CPUID_LEN
+
 extern int board_scan_boot_storage(void);
+
+void rk_setup_mac_addr(unsigned char *addr);
 
 #ifdef CONFIG_BOARD_LATE_INIT
 int rk_setup_boot_mode(void)
@@ -107,13 +113,69 @@ out:
 	return 0;
 }
 
+void get_rockchip_cpuid(unsigned char *buf)
+{
+	int ret;
+        struct udevice *dev;
+        u8 cpuid[RK3399_CPUID_LEN];
+
+        /* retrieve the device */
+        ret = uclass_get_device_by_driver(UCLASS_MISC,
+                                          DM_GET_DRIVER(rockchip_efuse), &dev);
+        if (ret) {
+                debug("%s: could not find efuse device\n", __func__);
+                return;
+        }
+
+        /* read the cpu_id range from the efuses */
+        ret = misc_read(dev, RK3399_CPUID_OFF, &cpuid, sizeof(cpuid));
+        if (ret) {
+                debug("%s: reading cpuid from the efuses failed\n",
+                      __func__);
+                return;
+        }
+
+	memcpy(buf, cpuid, RK3399_CPUID_LEN);
+}
+
+void rk_setup_mac_addr(unsigned char *addr)
+{
+	unsigned char cpuid[CPUID_SIZE];
+	unsigned char low[CPUID_SIZE/2];
+	unsigned char high[CPUID_SIZE/2];
+	unsigned char i;
+	unsigned int temp;
+
+	/* get cpuid from soc rockchip driver */
+	get_rockchip_cpuid(cpuid);
+
+	/* rearrange cpuid as 8bytes unit */
+	for (i = 0; i < (CPUID_SIZE / 2); i++) {
+		low[i] = cpuid[1 + (i << 1)];
+		high[i] = cpuid[i << 1];
+	}
+
+	/* calculate crc16 using low : 8byte input -> 2byte output */
+	temp = crc16_ccitt(0, low, 8);
+
+	/* calculate crc8 using high : 8byte input -> 1byte output */
+	temp |= (u64)crc8(temp, high, 8) << 16;
+
+	/* fixed pattern */
+	addr[0] = 0x00;
+	addr[1] = 0x1e;
+	addr[2] = 0x06;
+
+	/* unique pattern */
+	addr[3] = (char)(0xff & (temp >> 16));
+	addr[4] = (char)(0xff & (temp >> 8));
+	addr[5] = (char)(0xff & temp);
+}
+
 static void setup_macaddr(void)
 {
 #if CONFIG_IS_ENABLED(CMD_NET)
-	int ret;
 	const char *cpuid = env_get("cpuid#");
-	u8 hash[SHA256_SUM_LEN];
-	int size = sizeof(hash);
 	u8 mac_addr[6];
 
 	/* Only generate a MAC address, if none is set in the environment */
@@ -125,18 +187,8 @@ static void setup_macaddr(void)
 		return;
 	}
 
-	ret = hash_block("sha256", (void *)cpuid, strlen(cpuid), hash, &size);
-	if (ret) {
-		debug("%s: failed to calculate SHA256\n", __func__);
-		return;
-	}
+	rk_setup_mac_addr(mac_addr);
 
-	/* Copy 6 bytes of the hash to base the MAC address on */
-	memcpy(mac_addr, hash, 6);
-
-	/* Make this a valid MAC address and set it */
-	mac_addr[0] &= 0xfe;  /* clear multicast bit */
-	mac_addr[0] |= 0x02;  /* set local assignment bit (IEEE802) */
 	eth_env_set_enetaddr("ethaddr", mac_addr);
 #endif
 
