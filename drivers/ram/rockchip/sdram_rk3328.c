@@ -598,16 +598,6 @@ static void enable_low_power(struct dram_info *dram,
 	setbits_le32(pctl_base + DDR_PCTL2_PWRCTL, (1 << 3));
 }
 
-static inline void mmio_write_32(uintptr_t addr, uint32_t value)
-{
-	*(volatile uint32_t*)addr = value;
-}
-
-static inline void mmio_write_64(uintptr_t addr, uint64_t value)
-{
-	*(volatile uint64_t*)addr = value;
-}
-
 static int sdram_init(struct dram_info *dram,
 		      struct rk3328_sdram_params *sdram_params, u32 pre_init)
 {
@@ -635,8 +625,6 @@ static int sdram_init(struct dram_info *dram,
 			printf("LPDDR3\n");
 			break;
 		}
-
-		printf("DRAM frequency: %dMHz\n", sdram_params->ddr_freq);
 	}
 	/* release phy srst to provide clk to ctrl */
 	rkclk_ddr_reset(dram, 1, 1, 0, 0);
@@ -672,18 +660,6 @@ static int sdram_init(struct dram_info *dram,
 
 	dram_all_config(dram, sdram_params);
 	enable_low_power(dram, sdram_params);
-
-	// TODO: ayufan configure memory regions for ATF
-#define DDR_PARAM_BASE		0x02000000
-#define DDR_REGION_NR_MAX		10
-#define REGION_NR_OFFSET		0
-#define REGION_ADDR_OFFSET		8
-#define REGION_DATA_PER_BYTES		8
-
-	printf("configuring DDR parameters\n");
-	mmio_write_32(DDR_PARAM_BASE + REGION_NR_OFFSET, 1);
-	mmio_write_64(DDR_PARAM_BASE + REGION_ADDR_OFFSET, 0);
-	mmio_write_64(DDR_PARAM_BASE + REGION_ADDR_OFFSET + REGION_DATA_PER_BYTES, 0x100000000);
 
 	return 0;
 }
@@ -1003,24 +979,6 @@ static int rk3328_dmc_ofdata_to_platdata(struct udevice *dev)
 
 #endif
 
-struct ddr_param{
-	u32 count;
-	u32 reserved;
-	u64 bank_addr;
-	u64 bank_size;
-};
-#define PARAM_DRAM_INFO_OFFSET 0x2000000
-int setup_ddr_param(struct ram_info *info)
-{
-	struct ddr_param *dinfo = (struct ddr_param *)PARAM_DRAM_INFO_OFFSET;
-
-	dinfo->count = 1;
-	dinfo->bank_addr = info->base;
-	dinfo->bank_size = info->size;
-	printf("%s %p %d\n", __func__, &dinfo->count, dinfo->count);
-	return 0;
-}
-
 static int rk3328_dmc_probe(struct udevice *dev)
 {
 #ifdef CONFIG_TPL_BUILD
@@ -1034,9 +992,6 @@ static int rk3328_dmc_probe(struct udevice *dev)
 	priv->info.base = CONFIG_SYS_SDRAM_BASE;
 	priv->info.size = rockchip_sdram_size(
 				(phys_addr_t)&priv->grf->os_reg[2]);
-#ifdef CONFIG_SPL_BUILD
-	setup_ddr_param(&priv->info);
-#endif
 #endif
 	return 0;
 }
