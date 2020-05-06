@@ -86,9 +86,6 @@
 #define SCLK_USB3OTG_SUSPEND	97
 #define SCLK_REF_USB3OTG_SRC	98
 #define SCLK_MAC2IO_SRC		99
-#define SCLK_MAC2IO		100
-#define SCLK_MAC2PHY		101
-#define SCLK_MAC2IO_EXT		102
 
 /* dclk gates */
 #define DCLK_LCDC		180
@@ -202,7 +199,10 @@
 
 #define CLK_NR_CLKS		(HCLK_HDCP + 1)
 
-#define CLKGRF_NR_CLKS		(0)
+#define SCLK_MAC2IO		0
+#define SCLK_MAC2PHY		1
+
+#define CLKGRF_NR_CLKS		(SCLK_MAC2PHY + 1)
 
 /* soft-reset indices */
 #define SRST_CORE0_PO		0
