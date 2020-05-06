@@ -68,8 +68,6 @@
 #include <config_distro_bootcmd.h>
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"fdt_high=0x0fffffff\0" \
-	"initrd_high=0x0fffffff\0" \
 	"fdtfile=" FDTFILE \
 	"partitions=" PARTS_DEFAULT \
 	ENV_MEM_LAYOUT_SETTINGS \
