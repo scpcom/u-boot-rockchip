@@ -35,7 +35,7 @@ static int fix_lcd_backling_pull_mode(void)
 	return 0;
 }
 
-int board_init(void)
+int rk_board_init(void)
 {
 	struct udevice *pinctrl;
 	int ret;
