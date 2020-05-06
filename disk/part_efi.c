@@ -1087,6 +1087,10 @@ static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 		return 0;
 	}
 
+	/* Re-use pte if it's not NULL */
+	if (*pgpt_pte)
+		return 1;
+
 	ALLOC_CACHE_ALIGN_BUFFER(legacy_mbr, mbr, dev_desc->blksz);
 
 	/* Read MBR Header from device */
