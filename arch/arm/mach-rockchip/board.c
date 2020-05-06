@@ -52,6 +52,10 @@ __weak int rk_board_fdt_fixup(void *blob)
 	return 0;
 }
 
+__weak int rk_setup_boot_mode(void)
+{
+	return 0;
+}
 __weak int soc_clk_dump(void)
 {
 	return 0;
@@ -267,6 +271,7 @@ int board_late_init(void)
 #ifdef CONFIG_ROCKCHIP_USB_BOOT
 	boot_from_udisk();
 #endif
+	rk_setup_boot_mode();
 #ifdef CONFIG_DM_CHARGE_DISPLAY
 	charge_display();
 #endif

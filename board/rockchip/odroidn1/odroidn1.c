@@ -25,7 +25,7 @@ DECLARE_GLOBAL_DATA_PTR;
 extern int board_scan_boot_storage(void);
 
 #ifdef CONFIG_BOARD_LATE_INIT
-int rk_board_late_init(void)
+int rk_setup_boot_mode(void)
 {
 	if (board_scan_boot_storage() != 0) {
 		printf("board: scan boot stoarge fail\n");
