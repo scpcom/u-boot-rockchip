@@ -30,24 +30,37 @@ int load_resource_file(void *buf, const char *name,
 	char cmd[128];
 	unsigned long filesize;
 	char *p;
-	u32 dev_no;
+	u32 dev_no, part_idx;
+	u8 part_list[3] = { 1, 4, 6 };
 
 	p = buf;
 
 	env_set("filesize", "0");
 
 	dev_no = env_get_ulong("bootdev", 10, 0);
+	filesize = 0;
 
-	sprintf(cmd, "fatload mmc %d:1 0x%p %s 0x%x 0x%x", dev_no, (void *)p, name, len, offset);
-	run_command(cmd, 0);
+	for (part_idx = 0; part_idx < 3; part_idx++) {
+		if (filesize < len) {
+			sprintf(cmd, "fatload mmc %d:%d 0x%p %s 0x%x 0x%x", dev_no, part_list[part_idx], (void *)p, name, len, offset);
+			run_command(cmd, 0);
 
-	filesize = env_get_ulong("filesize", 16, 0);
+			filesize = env_get_ulong("filesize", 16, 0);
+		} else
+			break;
+	}
 
 	if ((filesize < len) && (!dev_no)) {
-		sprintf(cmd, "fatload mmc %d:1 0x%p %s 0x%x 0x%x", 1, (void *)p, name, len, offset);
-		run_command(cmd, 0);
+		dev_no = 1;
+		for (part_idx = 0; part_idx < 3; part_idx++) {
+			if (filesize < len) {
+				sprintf(cmd, "fatload mmc %d:%d 0x%p %s 0x%x 0x%x", dev_no, part_list[part_idx], (void *)p, name, len, offset);
+				run_command(cmd, 0);
 
-		filesize = env_get_ulong("filesize", 16, 0);
+				filesize = env_get_ulong("filesize", 16, 0);
+			} else
+				break;
+	        }
 	}
 
 	if (filesize < len) {
