@@ -290,27 +290,6 @@ struct efi_mac_addr {
 	u8 addr[32];
 } __packed;
 
-#define DEVICE_PATH_TYPE_HARDWARE_DEVICE	0x01
-#  define DEVICE_PATH_SUB_TYPE_VENDOR		0x04
-
-struct efi_device_path_vendor {
-	struct efi_device_path dp;
-	efi_guid_t guid;
-	u8 vendor_data[];
-} __packed;
-
-#define DEVICE_PATH_TYPE_ACPI_DEVICE		0x02
-#  define DEVICE_PATH_SUB_TYPE_ACPI_DEVICE	0x01
-
-#define EFI_PNP_ID(ID)				(u32)(((ID) << 16) | 0x41D0)
-#define EISA_PNP_ID(ID)				EFI_PNP_ID(ID)
-
-struct efi_device_path_acpi_path {
-	struct efi_device_path dp;
-	u32 hid;
-	u32 uid;
-} __packed;
-
 #define DEVICE_PATH_TYPE_MESSAGING_DEVICE	0x03
 #  define DEVICE_PATH_SUB_TYPE_MSG_USB		0x05
 #  define DEVICE_PATH_SUB_TYPE_MSG_MAC_ADDR	0x0b
@@ -328,20 +307,6 @@ struct efi_device_path_mac_addr {
 	struct efi_device_path dp;
 	struct efi_mac_addr mac;
 	u8 if_type;
-} __packed;
-
-struct efi_device_path_usb_class {
-	struct efi_device_path dp;
-	u16 vendor_id;
-	u16 product_id;
-	u8 device_class;
-	u8 device_subclass;
-	u8 device_protocol;
-} __packed;
-
-struct efi_device_path_sd_mmc_path {
-	struct efi_device_path dp;
-	u8 slot_number;
 } __packed;
 
 #define DEVICE_PATH_TYPE_MEDIA_DEVICE		0x04
