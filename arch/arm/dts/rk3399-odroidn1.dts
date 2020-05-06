@@ -172,9 +172,9 @@
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		regulator-name = "vdd_log";
+		regulator-init-microvolt = <900000>;
 		regulator-min-microvolt = <430000>;
 		regulator-max-microvolt = <1400000>;
-		regulator-init-microvolt = <950000>;
 		regulator-always-on;
 		regulator-boot-on;
 
