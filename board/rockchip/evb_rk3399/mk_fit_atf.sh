@@ -5,9 +5,11 @@
 #
 # usage: $0 <dt_name> [<dt_name> [<dt_name] ...]
 
-if [ -z "$BL31" ] || [ ! -e "$BL31" ]; then
-	echo "ERROR: BL31 file $BL31 NOT found, resulting binary is non-functional" >&2
-	exit 1
+[ -z "$BL31" ] && BL31="bl31.elf"
+
+if [ ! -f $BL31 ]; then
+	echo "WARNING: BL31 file $BL31 NOT found, resulting binary is non-functional" >&2
+	BL31=/dev/null
 fi
 
 #tools/mkimage -n rk3399 -T rksd -d spl/u-boot-spl.bin idbspl.img
