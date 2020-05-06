@@ -368,7 +368,7 @@
 		578     1701     300000
 		1702    99999    400000
 	>;
-	auto-min-freq = <400000>;
+	auto-min-freq = <800000>;
 };
 
 &display_subsystem {
