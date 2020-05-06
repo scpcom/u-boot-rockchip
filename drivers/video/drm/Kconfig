@@ -11,6 +11,10 @@ menuconfig DRM_ROCKCHIP
 	  This driver supports the on-chip video output device, and targets the
 	  Rockchip RK3288 and RK3399.
 
+config DRM_ROCKCHIP_VIDEO_FRAMEBUFFER
+	bool "Rockchip DRM Framebuffer Support"
+	depends on DRM_ROCKCHIP
+
 config DRM_ROCKCHIP_PANEL
 	bool "Rockchip Panel Support"
 	depends on DRM_ROCKCHIP
