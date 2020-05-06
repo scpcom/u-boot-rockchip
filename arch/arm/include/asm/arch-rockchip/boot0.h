@@ -26,6 +26,7 @@
 	 */
 	b 1f	 /* if overwritten, entry-address is at the next word */
 1:
+#endif
 #if CONFIG_IS_ENABLED(ROCKCHIP_EARLYRETURN_TO_BROM)
 	adr     r3, entry_counter
 	ldr	r0, [r3]
@@ -38,17 +39,36 @@
 entry_counter:
 	.word   0
 #endif
-	b reset
 
-#if defined(CONFIG_ROCKCHIP_RK3399)
-	.space CONFIG_ROCKCHIP_SPL_RESERVE_IRAM	/* space for the ATF data */
-#endif
-
-#elif defined(CONFIG_ARM64) /* U-Boot for arm64 */
-	b reset
-#endif
-
+#if (defined(CONFIG_SPL_BUILD) || defined(CONFIG_ARM64))
+	/* U-Boot proper of armv7 do not need this */
+#if CONFIG_IS_ENABLED(TINY_FRAMEWORK)
 #if !defined(CONFIG_ARM64)
+	/*
+	 * For armv7, the addr '_start' will check by u-boot-tpl.lds file.
+	 */
+_start:
+#endif
+	/* Allow the board to save important registers */
+	b save_boot_params
+
+.type   save_boot_params_ret, % function
+.globl	save_boot_params_ret
+save_boot_params_ret:
+	/* Init gd as null */
+#ifdef CONFIG_ARM64
+	mov	x18, #0
+#else
+	mov	r9, #0
+#endif
+	b board_init_f
+#else
+	b reset
+#endif
+
+#endif
+
+#if !defined(CONFIG_ARM64) && !CONFIG_IS_ENABLED(TINY_FRAMEWORK)
 	/*
 	 * For armv7, the addr '_start' will used as vector start address
 	 * and write to VBAR register, which needs to aligned to 0x20.
@@ -56,4 +76,8 @@ entry_counter:
 	.align(5), 0x0
 _start:
 	ARM_VECTORS
+#endif
+
+#if !defined(CONFIG_TPL_BUILD) && defined(CONFIG_SPL_BUILD) && (CONFIG_ROCKCHIP_SPL_RESERVE_IRAM > 0)
+	.space CONFIG_ROCKCHIP_SPL_RESERVE_IRAM	/* space for the ATF data */
 #endif

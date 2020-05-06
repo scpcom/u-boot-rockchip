@@ -14,6 +14,8 @@
 #include <bootm.h>
 #include <command.h>
 #include <android_bootloader_message.h>
+#include <android_avb/rk_avb_ops_user.h>
+#include <android_avb/avb_atx_ops.h>
 
 static int do_boot_android(cmd_tbl_t *cmdtp, int flag, int argc,
 			   char * const argv[])
@@ -39,6 +41,13 @@ static int do_boot_android(cmd_tbl_t *cmdtp, int flag, int argc,
 		else
 			load_address = CONFIG_SYS_LOAD_ADDR;
 	}
+
+#if defined(CONFIG_ARM64)
+	/* ARM64 kernel load addr need to align to 0x80000, and android boot.img
+	 * have a 2KB header, need to reserve space for it.
+	 */
+	load_address &= ~0x7ffff;
+#endif
 
 	dev_desc = blk_get_dev(argv[1], simple_strtoul(argv[2], NULL, 16));
 	if (!dev_desc) {
@@ -73,7 +82,7 @@ U_BOOT_CMD(
 	"      the partition table. This is commonly the \"misc\" partition.\n"
 );
 
-#ifdef CONFIG_AVB_LIBAVB_USER
+#ifdef CONFIG_RK_AVB_LIBAVB_USER
 static int bootloader_message_read(struct android_bootloader_message *data)
 {
 	AvbOps *ops;
@@ -135,7 +144,7 @@ int do_avb_init_ab_metadata(cmd_tbl_t *cmdtp, int flag,
 	AvbABData ab_data;
 
 	memset(&ab_data, 0, sizeof(AvbABData));
-	debug("sizeof(AvbABData) = %d\n", sizeof(AvbABData));
+	debug("sizeof(AvbABData) = %d\n", (int)(size_t)sizeof(AvbABData));
 	if (argc != 1)
 		return CMD_RET_USAGE;
 
@@ -145,14 +154,14 @@ int do_avb_init_ab_metadata(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	ops->ab_ops->init_ab_metadata(&ab_data);
-	debug("init");
+	avb_ab_data_init(&ab_data);
 	if (ops->ab_ops->write_ab_metadata(ops->ab_ops, &ab_data) != 0) {
 		printf("do_avb_init_ab_metadata error!\n");
 		avb_ops_user_free(ops);
 		return CMD_RET_FAILURE;
 	}
 
+	printf("Initialize ab data to misc partition success.\n");
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -194,6 +203,7 @@ int do_avb_ab_mark_slot_active(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	printf("Mark slot %d active successfully.\n", slot_number);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -221,6 +231,7 @@ int do_avb_ab_mark_slot_unbootable(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	printf("Mark slot %d unbootable successfully.\n", slot_number);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -277,7 +288,7 @@ int do_avb_read_rollback_index(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	printf("out_rollback_index = %llx\n", out_rollback_index);
+	printf("\nout_rollback_index = %llx\n", out_rollback_index);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -309,6 +320,7 @@ int do_avb_write_rollback_index(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	printf("\nWrite  rollback index successfully.\n");
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -335,7 +347,8 @@ int do_avb_read_is_device_unlocked(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	debug("out_is_unlocked = %d\n", out_is_unlocked);
+	printf("\n The device is %s\n",
+		out_is_unlocked ? "UNLOCKED" : "LOCKED");
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -390,12 +403,13 @@ int do_avb_get_size_of_partition(cmd_tbl_t *cmdtp, int flag,
 
 	if (ops->get_size_of_partition(ops, requested_partitions,
 				       &out_size_in_bytes) != 0) {
-		printf("do_avb_get_size_of_partition error!\n");
+		printf("Can not get %s partition size!\n", requested_partitions);
 		avb_ops_user_free(ops);
 		return CMD_RET_FAILURE;
 	}
 
-	printf("partition size = %lld\n", out_size_in_bytes);
+	printf("%s partition size = 0x%llx\n", requested_partitions,
+	       out_size_in_bytes);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -421,12 +435,13 @@ int do_avb_get_get_unique_guid_for_partition(cmd_tbl_t *cmdtp, int flag,
 
 	if (ops->get_unique_guid_for_partition(ops, requested_partitions,
 					       guid_buf, guid_buf_size) != 0) {
-		printf("do_avb_get_get_unique_guid_for_partition error!\n");
+		printf("Can not get %s partition UUID!\n",
+		       requested_partitions);
 		avb_ops_user_free(ops);
 		return CMD_RET_FAILURE;
 	}
 
-	printf("guid = %s\n", guid_buf);
+	printf("%s partition UUID is %s\n", requested_partitions, guid_buf);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -467,82 +482,13 @@ int do_avb_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return CMD_RET_FAILURE;
 	}
 
-	for (i = 0; i < 512 * blkcnt; i++)
-		printf("buffer %d = %d\n", i, buffer[i]);
-
-	free(buffer);
-	avb_ops_user_free(ops);
-
-	return CMD_RET_SUCCESS;
-}
-
-int do_avb_write(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-	AvbOps *ops;
-	char *requested_partitions;
-	int64_t offset_blk;
-	size_t blkcnt;
-	size_t out_num_read;
-	char *buffer;
-
-	if (argc != 4)
-		return CMD_RET_USAGE;
-
-	requested_partitions = argv[1];
-	offset_blk = simple_strtoul(argv[2], NULL, 16);
-	blkcnt = simple_strtoul(argv[3], NULL, 16);
-	ops = avb_ops_user_new();
-	buffer = (char *)malloc(blkcnt * 512);
-	if (buffer == NULL) {
-		printf("malloc buffer failed!\n");
-		return CMD_RET_FAILURE;
-	}
-
-	if (ops == NULL) {
-		printf("avb_ops_user_new() failed!\n");
-		return CMD_RET_FAILURE;
-	}
-	if (ops->read_from_partition(ops, requested_partitions, offset_blk,
-				     blkcnt, buffer, &out_num_read) != 0) {
-		printf("do_avb_write error!\n");
-		free(buffer);
-		avb_ops_user_free(ops);
-		return CMD_RET_FAILURE;
+	for (i = 0; i < 512 * blkcnt; i++) {
+		printf("buffer %d = %x", i, buffer[i]);
+		if ((i + 1) % 4 == 0)
+			printf("\n");
 	}
 
 	free(buffer);
-	avb_ops_user_free(ops);
-
-	return CMD_RET_SUCCESS;
-}
-
-int do_avb_load_ab_metadata(cmd_tbl_t *cmdtp, int flag,
-			    int argc, char * const argv[])
-{
-	AvbOps *ops;
-	AvbABData ab_data, ab_data_orig;
-	char *data;
-	int i;
-
-	if (argc != 1)
-		return CMD_RET_USAGE;
-
-	ops = avb_ops_user_new();
-	if (ops == NULL) {
-		printf("avb_ops_user_new() failed!\n");
-		return CMD_RET_FAILURE;
-	}
-
-	if (load_metadata(ops->ab_ops, &ab_data, &ab_data_orig) != 0) {
-		printf("do_avb_write_ab_metadata error!\n");
-		avb_ops_user_free(ops);
-		return CMD_RET_FAILURE;
-	}
-
-	data = (char *)&ab_data;
-	for (i = 0; i < 33; i++)
-		printf("%d\n", data[i]);
-
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -569,6 +515,18 @@ int do_avb_read_ab_metadata(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	printf("Slot A information:\n");
+	printf("slot A: priority = %d, tries_remaining = %d,\
+	       successful_boot = %d\n",
+	       ab_data.slots[0].priority,
+	       ab_data.slots[0].tries_remaining,
+	       ab_data.slots[0].successful_boot);
+	printf("Slot B information:\n");
+	printf("slot B: priority = %d, tries_remaining = %d,\
+	       successful_boot = %d\n",
+	       ab_data.slots[1].priority,
+	       ab_data.slots[1].tries_remaining,
+	       ab_data.slots[1].successful_boot);
 	avb_ops_user_free(ops);
 
 	return CMD_RET_SUCCESS;
@@ -593,6 +551,39 @@ int do_avb_write_ab_metadata(cmd_tbl_t *cmdtp, int flag,
 		printf("do_avb_write_ab_metadata error!\n");
 		avb_ops_user_free(ops);
 		return CMD_RET_FAILURE;
+	}
+
+	avb_ops_user_free(ops);
+
+	return CMD_RET_SUCCESS;
+}
+
+int do_perm_attr_test(cmd_tbl_t *cmdtp, int flag,
+		      int argc, char * const argv[])
+{
+	AvbOps *ops;
+	int i;
+	uint8_t hash[AVB_SHA256_DIGEST_SIZE];
+
+	if (argc != 1)
+		return CMD_RET_USAGE;
+
+	ops = avb_ops_user_new();
+	if (ops == NULL) {
+		printf("avb_ops_user_new() failed!\n");
+		return CMD_RET_FAILURE;
+	}
+
+	if (ops->atx_ops->read_permanent_attributes_hash(ops->atx_ops, hash) != 0) {
+		printf("read_permanent_attributes_hash error!\n");
+		avb_ops_user_free(ops);
+		return CMD_RET_FAILURE;
+	}
+
+	for (i = 0; i < AVB_SHA256_DIGEST_SIZE; i++) {
+		if (i % 4 == 0)
+			printf("\n");
+		printf("0x%x  ", hash[i]);
 	}
 
 	avb_ops_user_free(ops);
@@ -643,9 +634,10 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	AvbSlotVerifyFlags flags;
 	const char *requested_partitions[] = {"boot", "system", NULL};
 	char *command_line;
-	bool unlocked = true;
+	bool unlocked;
 	const char *mode_cmdline = NULL;
 	char root_data[70] = "root=PARTUUID=";
+	char *vboot_state = "androidboot.verifiedbootstate=";
 	char avb_root_data[2000] = {0};
 	size_t guid_buf_size = 37;
 	char guid_buf[37];
@@ -653,6 +645,7 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	char boot_slot_select[5];
 	struct android_bootloader_message data;
 	const char *fastboot_cmd = env_get("fastbootcmd");
+	AvbABFlowResult ab_result;
 
 	if (argc != 2)
 		return CMD_RET_USAGE;
@@ -666,7 +659,7 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return run_command(fastboot_cmd, CMD_FLAG_ENV);
 		} else {
 			printf("The fastbootcmd is NULL!\n");
-			return CMD_RET_SUCCESS;
+			goto fail;
 		}
 	} else if (!strcmp("boot-recovery", data.command)) {
 		printf("Enter boot-recovery!\n");
@@ -682,7 +675,7 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		 */
 		char *env_rebootmode = env_get("reboot_mode");
 
-		if (env_rebootmode && !strcmp("recovery", env_rebootmode))
+		if (env_rebootmode && !strncmp("recovery", env_rebootmode, 8))
 			printf("Enter recovery mode by command 'reboot recovery'!\n");
 		else
 			mode_cmdline = "skip_initramfs";
@@ -691,11 +684,23 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	avb_version = avb_version_string();
 	printf("Android avb version is %s.\n", avb_version);
 	ops = avb_ops_user_new();
-	if (ops == NULL)
+	if (ops == NULL) {
 		printf("avb_ops_user_new() failed!\n");
+		goto fail;
+	}
 
-	if (ops->read_is_device_unlocked(ops, &unlocked) != 0)
+	if (ops->read_is_device_unlocked(ops, &unlocked) != 0) {
 		printf("Error determining whether device is unlocked.\n");
+		unlocked = ANDROID_VBOOT_UNLOCK;
+		if (ops->write_is_device_unlocked(ops, &unlocked) != 0) {
+			printf("Can not write lock state!\n");
+			unlocked = ANDROID_VBOOT_LOCK;
+		}
+		if (ops->read_is_device_unlocked(ops, &unlocked) != 0) {
+			printf("Can not read lock state!\n");
+			unlocked = ANDROID_VBOOT_LOCK;
+		}
+	}
 
 	printf("read_is_device_unlocked() ops returned that device is %s\n",
 	       unlocked ? "UNLOCKED" : "LOCKED");
@@ -707,15 +712,27 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	verify_flag = argv[1][0];
 	if (verify_flag == 'v') {
 		debug("start with verify!\n");
-		if (avb_ab_flow(ops->ab_ops,
+		ab_result =
+		    avb_ab_flow(ops->ab_ops,
 				requested_partitions,
 				flags,
 				AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-				&slot_data)) {
-			avb_slot_verify_data_free(slot_data);
-			avb_ops_user_free(ops);
+				&slot_data);
+		if ((ab_result != AVB_AB_FLOW_RESULT_OK) &&
+		    (ab_result !=
+		    AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR)) {
 			printf("avb_ab_flow() error!\n");
-			return CMD_RET_FAILURE;
+			avb_ops_user_free(ops);
+			goto fail;
+		}
+
+		if (ab_result ==\
+		    AVB_AB_FLOW_RESULT_OK_WITH_VERIFICATION_ERROR) {
+			strcat(avb_root_data, vboot_state);
+			strcat(avb_root_data, "orange");
+		} else if (ab_result == AVB_AB_FLOW_RESULT_OK) {
+			strcat(avb_root_data, vboot_state);
+			strcat(avb_root_data, "green");
 		}
 
 		command_line = android_assemble_cmdline(slot_data->ab_suffix,
@@ -726,18 +743,18 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		strcat(avb_root_data, slot_data->cmdline);
 		env_set("bootargs", avb_root_data);
 		load_address = CONFIG_SYS_LOAD_ADDR;
-		if (avb_close_optee_client())
+		if (rk_avb_close_optee_client())
 			printf("Can not close optee client!\n");
 
 		memcpy((uint8_t*)load_address,
 		       slot_data->loaded_partitions->data,
 		       slot_data->loaded_partitions->data_size);
 		android_bootloader_boot_kernel(load_address);
+		avb_ops_user_free(ops);
 	} else if (verify_flag == 'n') {
 		load_address = CONFIG_SYS_LOAD_ADDR;
-		avb_ab_slot_select(ops->ab_ops, boot_slot_select);
+		rk_avb_ab_slot_select(ops->ab_ops, boot_slot_select);
 		strcat(slot_partition[1], requested_partitions[1]);
-		strcat(slot_partition[1], boot_slot_select);
 		printf("%s\n", slot_partition[1]);
 		ops->get_unique_guid_for_partition(ops,
 						   slot_partition[1],
@@ -749,7 +766,12 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		strcat(root_data, " ");
 		strcat(root_data, command_line);
 		env_set("bootargs", root_data);
-		android_avb_boot_flow(boot_slot_select, load_address);
+		if (android_avb_boot_flow(load_address)) {
+			printf("Cannot boot the system, goto the fastboot!\n");
+			avb_ops_user_free(ops);
+			goto fail;
+		}
+		avb_ops_user_free(ops);
 	} else if (verify_flag == 'o') {
 		load_address = CONFIG_SYS_LOAD_ADDR;
 		strcat(slot_partition[1], requested_partitions[1]);
@@ -763,12 +785,24 @@ int do_avb_flow(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		strcat(root_data, " ");
 		strcat(root_data, command_line);
 		env_set("bootargs", root_data);
-		android_boot_flow(load_address);
+		if (android_boot_flow(load_address)) {
+			printf("Cannot boot the system, goto the fastboot!\n");
+			avb_ops_user_free(ops);
+			goto fail;
+		}
+		avb_ops_user_free(ops);
 	} else {
 		return CMD_RET_USAGE;
 	}
 
 	return CMD_RET_SUCCESS;
+fail:
+	if (fastboot_cmd == NULL) {
+		printf("fastboot_cmd is null, run default fastboot_cmd!\n");
+		fastboot_cmd = "fastboot usb 0";
+	}
+
+	return run_command(fastboot_cmd, CMD_FLAG_ENV);
 }
 
 static cmd_tbl_t cmd_avb[] = {
@@ -793,10 +827,8 @@ static cmd_tbl_t cmd_avb[] = {
 	U_BOOT_CMD_MKENT(part_guid, 2, 1,
 			 do_avb_get_get_unique_guid_for_partition, "", ""),
 	U_BOOT_CMD_MKENT(read, 4, 1, do_avb_read, "", ""),
-	U_BOOT_CMD_MKENT(write, 4, 1, do_avb_write, "", ""),
-	U_BOOT_CMD_MKENT(loadabmisc, 1, 1, do_avb_load_ab_metadata, "", ""),
 	U_BOOT_CMD_MKENT(readabmisc, 1, 1, do_avb_read_ab_metadata, "", ""),
-	U_BOOT_CMD_MKENT(writeabmisc, 1, 1, do_avb_write_ab_metadata, "", ""),
+	U_BOOT_CMD_MKENT(perm_attr_test, 1, 1, do_perm_attr_test, "", ""),
 	U_BOOT_CMD_MKENT(verify, 3, 1, do_avb_verify_partition, "", ""),
 	U_BOOT_CMD_MKENT(flow, 2, 1, do_avb_flow, "", "")
 };
@@ -830,16 +862,14 @@ U_BOOT_CMD(
 	"bootavb slot_unbootable cnt\n"
 	"bootavb slot_successful cnt\n"
 	"bootavb read_rollback rollback_index_location\n"
-	"bootavb write_rollback rollback_index_location out_rollback_index\n"
+	"bootavb write_rollback rollback_index_location rollback_index\n"
 	"bootavb read_lock_status\n"
 	"bootavb write_lock_status 0 or 1\n"
 	"bootavb part_size partitions_name\n"
 	"bootavb part_guid partitions_name\n"
 	"bootavb read partition offset_blk cnt\n"
-	"bootavb write partition offset_blk cnt\n"
-	"bootavb loadabmisc\n"
 	"bootavb readabmisc\n"
-	"bootavb writeabmisc\n"
+	"bootavb perm_attr_test\n"
 	"bootavb verify partition slot_cnt;partion name without '_a' or '_b'\n"
 	"bootavb flow v/n\n"
 );

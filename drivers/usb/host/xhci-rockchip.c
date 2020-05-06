@@ -6,8 +6,6 @@
  */
 #include <common.h>
 #include <dm.h>
-#include <fdtdec.h>
-#include <libfdt.h>
 #include <malloc.h>
 #include <usb.h>
 #include <watchdog.h>
@@ -16,13 +14,12 @@
 #include <linux/usb/dwc3.h>
 #include <power/regulator.h>
 
-#include "xhci.h"
+#include <usb/xhci.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 struct rockchip_xhci_platdata {
 	fdt_addr_t hcd_base;
-	fdt_addr_t phy_base;
 	struct udevice *vbus_supply;
 };
 
@@ -64,29 +61,14 @@ u32 xhci_usb_get_maximum_speed(struct udevice *dev)
 static int xhci_usb_ofdata_to_platdata(struct udevice *dev)
 {
 	struct rockchip_xhci_platdata *plat = dev_get_platdata(dev);
-	struct udevice *child;
 	int ret = 0;
 
 	/*
 	 * Get the base address for XHCI controller from the device node
 	 */
-	plat->hcd_base = devfdt_get_addr(dev);
+	plat->hcd_base = dev_read_addr(dev);
 	if (plat->hcd_base == FDT_ADDR_T_NONE) {
-		error("Can't get the XHCI register base address\n");
-		return -ENXIO;
-	}
-
-	/* Get the base address for usbphy from the device node */
-	for (device_find_first_child(dev, &child); child;
-	     device_find_next_child(&child)) {
-		if (!device_is_compatible(child, "rockchip,rk3399-usb3-phy"))
-			continue;
-		plat->phy_base = devfdt_get_addr(child);
-		break;
-	}
-
-	if (plat->phy_base == FDT_ADDR_T_NONE) {
-		error("Can't get the usbphy register address\n");
+		pr_err("Can't get the XHCI register base address\n");
 		return -ENXIO;
 	}
 
@@ -154,7 +136,7 @@ static int rockchip_xhci_core_init(struct rockchip_xhci *rkxhci,
 
 	ret = dwc3_core_init(rkxhci->dwc3_reg);
 	if (ret) {
-		error("failed to initialize core\n");
+		pr_err("failed to initialize core\n");
 		return ret;
 	}
 
@@ -181,14 +163,14 @@ static int xhci_usb_probe(struct udevice *dev)
 	if (plat->vbus_supply) {
 		ret = regulator_set_enable(plat->vbus_supply, true);
 		if (ret) {
-			error("XHCI: failed to set VBus supply\n");
+			pr_err("XHCI: failed to set VBus supply\n");
 			return ret;
 		}
 	}
 
 	ret = rockchip_xhci_core_init(ctx, dev);
 	if (ret) {
-		error("XHCI: failed to initialize controller\n");
+		pr_err("XHCI: failed to initialize controller\n");
 		return ret;
 	}
 
@@ -211,7 +193,7 @@ static int xhci_usb_remove(struct udevice *dev)
 	if (plat->vbus_supply) {
 		ret = regulator_set_enable(plat->vbus_supply, false);
 		if (ret)
-			error("XHCI: failed to set VBus supply\n");
+			pr_err("XHCI: failed to set VBus supply\n");
 	}
 
 	return ret;

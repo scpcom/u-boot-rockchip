@@ -44,12 +44,11 @@ int android_bootloader_boot_flow(struct blk_desc *dev_desc,
 /** android_avb_boot_flow - Execute the Android Bootloader Flow.
  * This fuction use to select and boot kernel through ab_suffix.
  *
- * @ab_suffix:		the boot slot to boot from.
  * @kernel_address:	address where to load the kernel if needed.
  *
  * @return a negative number in case of error, otherwise it doesn't return.
  */
-int android_avb_boot_flow(char *ab_suffix, unsigned long kernel_address);
+int android_avb_boot_flow(unsigned long kernel_address);
 
 /** android_assemble_cmdline - Assemble args for cmdline.
  *
@@ -76,5 +75,30 @@ int android_bootloader_boot_kernel(unsigned long kernel_address);
  * @return a negative number in case of error, otherwise it doesn't return.
  */
 int android_boot_flow(unsigned long kernel_address);
+
+/** str_append- add str to tail.
+ *
+ * @base_name:	base name address.
+ * @slot_suffix: suffix.
+ *
+ * @return (base name + suffix)address.
+ */
+char *android_str_append(char *base_name, char *slot_suffix);
+
+/** anrdroid_fdt_overlay_apply- apply fdt overlay.
+ *
+ * @fdt_addr: fdt blob.
+ *
+ * @return 0 on success, otherwise failed.
+ */
+int android_fdt_overlay_apply(void *fdt_addr);
+
+/** android_bcb_write- write the android bootloader message.
+ *
+ * @cmd: boot command
+ *
+ * @return 0 on success, otherwise failed.
+ */
+int android_bcb_write(char *cmd);
 
 #endif  /* __ANDROID_BOOTLOADER_H */

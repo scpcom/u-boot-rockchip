@@ -1,15 +1,16 @@
 #
-# (C) Copyright 2017 Rockchip Electronics Co., Ltd.
+# (C) Copyright 2019 Rockchip Electronics Co., Ltd.
 #
 # SPDX-License-Identifier:     GPL-2.0+
 #
 
 obj-y += test-rockchip.o
-obj-y += test-timer.o
-obj-y += test-key.o
-obj-y += test-emmc.o
-obj-y += test-regulator.o
-obj-y += test-rknand.o
-obj-$(CONFIG_GMAC_ROCKCHIP) += test-eth.o
-obj-$(CONFIG_RK_IR) += test-ir.o
-obj-y += test-brom-dnl.o
+obj-y += test-boot.o
+obj-y += test-download.o
+ifdef CONFIG_RKIMG_BOOTLOADER
+obj-y += test-display.o
+obj-y += test-misc.o
+endif
+obj-y += test-net.o
+obj-y += test-power.o
+obj-y += test-storage.o

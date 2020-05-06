@@ -8,6 +8,7 @@
 #include <optee_include/OpteeClientApiLib.h>
 #include <optee_include/OpteeClientMem.h>
 #include <optee_include/OpteeClientSMC.h>
+#include <optee_include/OpteeClientRkFs.h>
 
 /*
  * Initlialize the library
@@ -16,9 +17,18 @@ TEEC_Result OpteeClientApiLibInitialize(void)
 {
 	TEEC_Result status = TEEC_SUCCESS;
 
-	OpteeClientMemInit();
+	status = OpteeClientMemInit();
+	if (status != TEEC_SUCCESS) {
+		printf("TEEC: OpteeClientMemInit fail!\n");
+		return status;
+	}
+	status = OpteeClientRkFsInit();
+	if (status != TEEC_SUCCESS) {
+		printf("TEEC: OpteeClientRkFsInit fail!\n");
+		return status;
+	}
 
-	return status;
+	return TEEC_SUCCESS;
 }
 
 /*
@@ -51,7 +61,7 @@ TEEC_Result TEEC_InitializeContext(const char *name,
 	memset(context, 0, sizeof(*context));
 
 exit:
-	debug("TEEC_InitializeContext Exit : teecresult=0x%X\n\n", teecresult);
+	debug("TEEC_InitializeContext Exit : teecresult=0x%X\n", teecresult);
 	return teecresult;
 }
 
@@ -64,8 +74,8 @@ exit:
  */
 TEEC_Result TEEC_FinalizeContext(TEEC_Context *context)
 {
-	debug("TEEC_FinalizeContext Enter-Exit: context=0x%X\n",
-		(unsigned int)context);
+	debug("TEEC_FinalizeContext Enter-Exit: context=0x%zu\n",
+		(size_t)context);
 	return TEEC_SUCCESS;
 }
 
@@ -81,7 +91,7 @@ TEEC_Result TEEC_AllocateSharedMemory(TEEC_Context *context,
 {
 	TEEC_Result TeecResult = TEEC_SUCCESS;
 
-	debug("TEEC_AllocateSharedMemory Enter: context=%s 0x%X, shared_memory=0x%X\n",
+	debug("TEEC_AllocateSharedMemory Enter: context=%s 0x%X, shared_memory=0x%zu\n",
 		context->devname, context->fd, shared_memory->size);
 
 	if ((context == NULL) || (shared_memory == NULL)) {
@@ -97,7 +107,7 @@ TEEC_Result TEEC_AllocateSharedMemory(TEEC_Context *context,
 	shared_memory->buffer = NULL;
 	shared_memory->alloc_buffer = 0;
 
-	debug("TEEC_AllocateSharedMemory: size=0x%X, flags=0x%X\n",
+	debug("TEEC_AllocateSharedMemory: size=0x%zu, flags=0x%X\n",
 			shared_memory->size, shared_memory->flags);
 
 	shared_memory->buffer = OpteeClientMemAlloc(shared_memory->size);
@@ -121,7 +131,7 @@ Exit:
  */
 void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *shared_memory)
 {
-	debug("TEEC_ReleaseSharedMemory Enter: shared_memory=0x%X\n",
+	debug("TEEC_ReleaseSharedMemory Enter: shared_memory=0x%zu\n",
 				shared_memory->size);
 
 	if (shared_memory == NULL)
@@ -233,7 +243,7 @@ Exit:
 	if (error_origin != NULL)
 		*error_origin = TeecErrorOrigin;
 
-	debug("TEEC_OpenSession Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n\n",
+	debug("TEEC_OpenSession Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n",
 				TeecResult, TeecErrorOrigin);
 	return TeecResult;
 }
@@ -255,7 +265,7 @@ void TEEC_CloseSession(TEEC_Session *session)
 	TeecResult = TEEC_SMC_CloseSession(session, &TeecErrorOrigin);
 
 Exit:
-	debug("TEEC_CloseSession Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n\n",
+	debug("TEEC_CloseSession Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n",
 			TeecResult, TeecErrorOrigin);
 	return;
 }
@@ -294,7 +304,7 @@ Exit:
 	if (error_origin != NULL)
 		*error_origin = TeecErrorOrigin;
 
-	debug("TEEC_InvokeCommand Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n\n",
+	debug("TEEC_InvokeCommand Exit : TeecResult=0x%X, TeecErrorOrigin=0x%X\n",
 				TeecResult, TeecErrorOrigin);
 
 	return TeecResult;

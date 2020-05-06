@@ -186,8 +186,15 @@
 		status = "disabled";
 	};
 
+	crypto: crypto@ff060000 {
+		compatible = "rockchip,rk322x-crypto";
+		reg = <0x0 0xff060000 0x0 0x10000>;
+		clock-names = "sclk_crypto";
+		clocks = <&cru SCLK_CRYPTO>;
+		status = "disabled";
+	};
+
 	grf: syscon@ff100000 {
-		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3328-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff100000 0x0 0x1000>;
 		#address-cells = <1>;
@@ -355,7 +362,6 @@
 	};
 
 	dmc: dmc {
-		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3328-dmc";
 		reg = <0x0 0xff400000 0x0 0x1000
 		       0x0 0xff780000 0x0 0x3000
@@ -366,7 +372,6 @@
 	};
 
 	cru: clock-controller@ff440000 {
-		u-boot,dm-pre-reloc;
 		compatible = "rockchip,rk3328-cru", "rockchip,cru", "syscon";
 		reg = <0x0 0xff440000 0x0 0x1000>;
 		rockchip,grf = <&grf>;
@@ -405,7 +410,7 @@
 			<0>, <61440000>,
 			<0>, <24000000>,
 			<24000000>, <24000000>,
-			<15000000>, <15000000>,
+			<150000000>, <150000000>,
 			<100000000>, <100000000>,
 			<100000000>, <100000000>,
 			<50000000>, <100000000>,
@@ -438,12 +443,6 @@
 		u2phy: usb2-phy@100 {
 			compatible = "rockchip,rk3328-usb2phy";
 			reg = <0x100 0x10>;
-			clocks = <&xin24m>;
-			clock-names = "phyclk";
-			clock-output-names = "usb480m_phy";
-			#clock-cells = <0>;
-			assigned-clocks = <&cru USB480M>;
-			assigned-clock-parents = <&u2phy>;
 			#phy-cells = <1>;
 			status = "disabled";
 
@@ -470,8 +469,9 @@
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff500000 0x0 0x4000>;
 		max-frequency = <150000000>;
-		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
-		clock-names = "biu", "ciu";
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -483,7 +483,7 @@
 		max-frequency = <150000000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -493,10 +493,30 @@
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff520000 0x0 0x4000>;
 		max-frequency = <150000000>;
-		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
-		clock-names = "biu", "ciu";
+		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
+			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	gmac2io: ethernet@ff540000 {
+		compatible = "rockchip,rk3328-gmac";
+		reg = <0x0 0xff540000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC2IO>, <&cru SCLK_MAC2IO_RX>,
+			 <&cru SCLK_MAC2IO_TX>, <&cru SCLK_MAC2IO_REF>,
+			 <&cru SCLK_MAC2IO_REFOUT>, <&cru ACLK_MAC2IO>,
+			 <&cru PCLK_MAC2IO>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			      "mac_clk_tx", "clk_mac_ref",
+			      "clk_mac_refout", "aclk_mac",
+			      "pclk_mac";
+		resets = <&cru SRST_GMAC2IO_A>;
+		reset-names = "stmmaceth";
 		status = "disabled";
 	};
 
@@ -504,7 +524,7 @@
 		compatible = "generic-ehci";
 		reg = <0x0 0xff5c0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&u2phy 1>;
+		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -513,7 +533,7 @@
 		compatible = "generic-ohci";
 		reg = <0x0 0xff5d0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&u2phy 1>;
+		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -525,7 +545,7 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		hnp-srp-disable;
 		dr_mode = "otg";
-		phys = <&u2phy 0>;
+		phys = <&u2phy_otg>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -747,7 +767,7 @@
 			uart0_xfer: uart0-xfer {
 				rockchip,pins =
 					<1 9 RK_FUNC_1 &pcfg_pull_up>,
-					<1 8 RK_FUNC_1 &pcfg_pull_none>;
+					<1 8 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -770,7 +790,7 @@
 			uart1_xfer: uart1-xfer {
 				rockchip,pins =
 					<3 4 RK_FUNC_4 &pcfg_pull_up>,
-					<3 6 RK_FUNC_4 &pcfg_pull_none>;
+					<3 6 RK_FUNC_4 &pcfg_pull_up>;
 			};
 
 			uart1_cts: uart1-cts {
@@ -793,7 +813,7 @@
 			uart2m0_xfer: uart2m0-xfer {
 				rockchip,pins =
 					<1 0 RK_FUNC_2 &pcfg_pull_up>,
-					<1 1 RK_FUNC_2 &pcfg_pull_none>;
+					<1 1 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
@@ -801,7 +821,7 @@
 			uart2m1_xfer: uart2m1-xfer {
 				rockchip,pins =
 					<2 0 RK_FUNC_1 &pcfg_pull_up>,
-					<2 1 RK_FUNC_1 &pcfg_pull_none>;
+					<2 1 RK_FUNC_1 &pcfg_pull_up>;
 			};
 		};
 

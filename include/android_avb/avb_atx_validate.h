@@ -43,31 +43,6 @@ extern "C" {
 #define AVB_ATX_PIK_VERSION_LOCATION 0x1000
 #define AVB_ATX_PSK_VERSION_LOCATION 0x1001
 
-/**
- * read permanent attributes from rpmb
- *
- * @param atx_ops
- *
- * @param attributes The attributes inclue psk_public product id,
- * 		     ref:AvbAtxPermanentAttributes.
- *
- * @return AvbIOResult
- */
-AvbIOResult avb_read_perm_attr(AvbAtxOps* atx_ops,
-				      AvbAtxPermanentAttributes* attributes);
-
-/**
- * read permanent attributes hash from efuse
- *
- * @param atx_ops
- *
- * @param attributes The attributes inclue psk_public product id,
- * 		     ref:AvbAtxPermanentAttributes.
- *
- * @return AvbIOResult
- */
-AvbIOResult avb_read_perm_attr_hash(AvbAtxOps* atx_ops,
-					   uint8_t hash[AVB_SHA256_DIGEST_SIZE]);
 /* An implementation of validate_vbmeta_public_key for Android Things. See
  * libavb/avb_ops.h for details on validate_vbmeta_public_key in general. This
  * implementation uses the metadata expected with Android Things vbmeta images
@@ -95,6 +70,20 @@ AvbIOResult avb_atx_validate_vbmeta_public_key(
     size_t public_key_length,
     const uint8_t* public_key_metadata,
     size_t public_key_metadata_length,
+    bool* out_is_trusted);
+
+/* Generates a challenge which can be used to create an unlock credential. */
+AvbIOResult avb_atx_generate_unlock_challenge(
+    AvbAtxOps* atx_ops, AvbAtxUnlockChallenge* out_unlock_challenge);
+
+/* Validates an unlock credential. The certificate validation is very similar to
+ * the validation of public key metadata except in place of the PSK is a Product
+ * Unlock Key (PUK) and the certificate usage field identifies it as such. The
+ * challenge signature field is verified against this PUK.
+ */
+AvbIOResult avb_atx_validate_unlock_credential(
+    AvbAtxOps* atx_ops,
+    const AvbAtxUnlockCredential* unlock_credential,
     bool* out_is_trusted);
 
 #ifdef __cplusplus

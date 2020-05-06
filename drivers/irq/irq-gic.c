@@ -4,249 +4,38 @@
  * SPDX-License-Identifier:     GPL-2.0+
  */
 
-#include <asm/io.h>
+#include <common.h>
 #include <asm/gic.h>
 #include <config.h>
-#include <irq-generic.h>
-#include "irq-gic.h"
+#include "irq-internal.h"
 
-#define gicd_readl(offset)	readl(GICD_BASE + (offset))
-#define gicc_readl(offset)	readl(GICC_BASE + (offset))
-#define gicd_writel(v, offset)	writel(v, GICD_BASE + (offset))
-#define gicc_writel(v, offset)	writel(v, GICC_BASE + (offset))
+#define gicd_readl(offset)	readl((void *)GICD_BASE + (offset))
+#define gicc_readl(offset)	readl((void *)GICC_BASE + (offset))
+#define gicd_writel(v, offset)	writel(v, (void *)GICD_BASE + (offset))
+#define gicc_writel(v, offset)	writel(v, (void *)GICC_BASE + (offset))
+
+/* 64-bit write */
+#define gicd_writeq(v, offset)	writeq(v, (void *)GICD_BASE + (offset))
+
+#define IRQ_REG_X4(irq)		(4 * ((irq) / 4))
+#define IRQ_REG_X16(irq)	(4 * ((irq) / 16))
+#define IRQ_REG_X32(irq)	(4 * ((irq) / 32))
+#define IRQ_REG_X4_OFFSET(irq)	((irq) % 4)
+#define IRQ_REG_X16_OFFSET(irq)	((irq) % 16)
+#define IRQ_REG_X32_OFFSET(irq)	((irq) % 32)
+
+#define MPIDR_CPU_MASK		0xff
+
+#define IROUTER_IRM_SHIFT	31
+#define IROUTER_IRM_MASK	0x1
+#define gicd_irouter_val_from_mpidr(mpidr, irm)		\
+	((mpidr & ~(0xff << 24)) |			\
+	 (irm & IROUTER_IRM_MASK) << IROUTER_IRM_SHIFT)
 
 typedef enum INT_TRIG {
 	INT_LEVEL_TRIGGER,
 	INT_EDGE_TRIGGER
 } eINT_TRIG;
-
-typedef enum INT_SECURE {
-	INT_SECURE,
-	INT_NOSECURE
-} eINT_SECURE;
-
-typedef enum INT_SIGTYPE {
-	INT_SIGTYPE_IRQ,
-	INT_SIGTYPE_FIQ
-} eINT_SIGTYPE;
-
-#define g_gicd		((pGICD_REG)GICD_BASE)
-#define g_gicc		((pGICC_REG)GICC_BASE)
-
-__maybe_unused static u8 g_gic_cpumask = 0x01;
-
-static inline void int_set_prio_filter(u32 nprio)
-{
-	g_gicc->iccpmr = (nprio & 0xff);
-}
-
-static inline void int_enable_distributor(void)
-{
-	g_gicd->icddcr = 0x01;
-}
-
-static inline void int_disable_distributor(void)
-{
-	g_gicd->icddcr = 0x00;
-}
-
-static inline void int_enable_secure_signal(void)
-{
-	g_gicc->iccicr |= 0x01;
-}
-
-static inline void int_disable_secure_signal(void)
-{
-	g_gicc->iccicr &= (~0x01);
-}
-
-static inline void int_enable_nosecure_signal(void)
-{
-	g_gicc->iccicr |= 0x02;
-}
-
-static inline void int_disable_nosecure_signal(void)
-{
-	g_gicc->iccicr &= (~0x02);
-}
-
-static int gic_irq_set_trigger(int irq, eINT_TRIG ntrig)
-{
-	u32 group, offset;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	group = irq / 16;
-	offset = irq % 16;
-
-	if (ntrig == INT_LEVEL_TRIGGER)
-		g_gicd->icdicfr[group] &= (~(1 << (2 * offset + 1)));
-	else
-		g_gicd->icdicfr[group] |= (1 << (2 * offset + 1));
-
-	return 0;
-}
-
-__maybe_unused static int gic_irq_set_pending(int irq)
-{
-	u32 group, offset;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	group = irq / 32;
-	offset = irq % 32;
-	g_gicd->icdispr[group] = (0x1 << offset);
-
-	return 0;
-}
-
-__maybe_unused static int gic_irq_clear_pending(int irq)
-{
-	u32 group, offset;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	group = irq / 32;
-	offset = irq % 32;
-	g_gicd->icdicpr[group] = (0x1 << offset);
-
-	return 0;
-}
-
-__maybe_unused static int gic_irq_set_secure(int irq, eINT_SECURE nsecure)
-{
-	u32 group, offset;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	group = irq / 32;
-	offset = irq % 32;
-	g_gicd->icdiser[group] |= nsecure << offset;
-
-	return 0;
-}
-
-__maybe_unused static u32 gic_get_cpumask(void)
-{
-	u32 mask = 0, i;
-
-	for (i = mask = 0; i < 32; i += 4) {
-		mask = g_gicd->itargetsr[i];
-		mask |= mask >> 16;
-		mask |= mask >> 8;
-		if (mask)
-			break;
-	}
-
-	if (!mask)
-		printf("GIC CPU mask not found.\n");
-
-	debug("GIC CPU mask = 0x%08x\n", mask);
-
-	return mask;
-}
-
-static int gic_irq_enable(int irq)
-{
-#ifdef CONFIG_GICV2
-	u32 shift = (irq % 4) * 8;
-	u32 offset = (irq / 4);
-	u32 M, N;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	M = irq / 32;
-	N = irq % 32;
-
-	g_gicc->iccicr &= (~0x08);
-	g_gicd->icdiser[M] = (0x1 << N);
-	g_gicd->itargetsr[offset] &= ~(0xFF << shift);
-	g_gicd->itargetsr[offset] |= (g_gic_cpumask << shift);
-#else
-	u32 M, N;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	M = irq / 32;
-	N = irq % 32;
-	g_gicd->icdiser[M] = (0x1 << N);
-#endif
-
-	return 0;
-}
-
-static int gic_irq_disable(int irq)
-{
-	u32 group, offset;
-
-	if (irq >= PLATFORM_GIC_IRQS_NR)
-		return -EINVAL;
-
-	group = irq / 32;
-	offset = irq % 32;
-	g_gicd->icdicer[group] = (0x1 << offset);
-
-	return 0;
-}
-
-/*
- * irq_set_type - set the irq trigger type for an irq
- *
- * @irq: irq number
- * @type: IRQ_TYPE_{LEVEL,EDGE}_* value - see asm/arch/irq.h
- */
-static int gic_irq_set_type(int irq, unsigned int type)
-{
-	unsigned int int_type;
-
-	switch (type) {
-	case IRQ_TYPE_EDGE_RISING:
-	case IRQ_TYPE_EDGE_FALLING:
-		int_type = INT_EDGE_TRIGGER;
-		break;
-	case IRQ_TYPE_LEVEL_HIGH:
-	case IRQ_TYPE_LEVEL_LOW:
-		int_type = INT_LEVEL_TRIGGER;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	gic_irq_set_trigger(irq, int_type);
-
-	return 0;
-}
-
-static void gic_irq_eoi(int irq)
-{
-#ifdef CONFIG_GICV2
-	g_gicc->icceoir = irq;
-#else
-	asm volatile("msr " __stringify(ICC_EOIR1_EL1) ", %0"
-			: : "r" ((u64)irq));
-	asm volatile("msr " __stringify(ICC_DIR_EL1) ", %0"
-			: : "r" ((u64)irq));
-	isb();
-#endif
-}
-
-static int gic_irq_get(void)
-{
-#ifdef CONFIG_GICV2
-	return g_gicc->icciar & 0x3ff; /* bit9 - bit0 */
-#else
-	u64 irqstat;
-
-	asm volatile("mrs %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
-	return (u32)irqstat & 0x3ff;
-#endif
-}
 
 struct gic_dist_data {
 	uint32_t ctlr;
@@ -266,9 +55,177 @@ struct gic_cpu_data {
 static struct gic_dist_data gicd_save;
 static struct gic_cpu_data gicc_save;
 
-#define IRQ_REG_X4(irq)		(4 * ((irq) / 4))
-#define IRQ_REG_X16(irq)	(4 * ((irq) / 16))
-#define IRQ_REG_X32(irq)	(4 * ((irq) / 32))
+static inline void int_set_prio_filter(u32 priority)
+{
+	gicc_writel(priority & 0xff, GICC_PMR);
+}
+
+static inline void int_enable_distributor(void)
+{
+	u32 val;
+
+	val = gicd_readl(GICD_CTLR);
+	val |= 0x01;
+	gicd_writel(val, GICD_CTLR);
+}
+
+static inline void int_disable_distributor(void)
+{
+	u32 val;
+
+	val = gicd_readl(GICD_CTLR);
+	val &= ~0x01;
+	gicd_writel(val, GICD_CTLR);
+}
+
+static inline void int_enable_secure_signal(void)
+{
+	u32 val;
+
+	val = gicc_readl(GICC_CTLR);
+	val |= 0x01;
+	gicc_writel(val, GICC_CTLR);
+}
+
+static inline void int_disable_secure_signal(void)
+{
+	u32 val;
+
+	val = gicc_readl(GICC_CTLR);
+	val &= ~0x01;
+	gicc_writel(val, GICC_CTLR);
+}
+
+static inline void int_enable_nosecure_signal(void)
+{
+	u32 val;
+
+	val = gicc_readl(GICC_CTLR);
+	val |= 0x02;
+	gicc_writel(val, GICC_CTLR);
+}
+
+static inline void int_disable_nosecure_signal(void)
+{
+	u32 val;
+
+	val = gicc_readl(GICC_CTLR);
+	val &= ~0x02;
+	gicc_writel(val, GICC_CTLR);
+}
+
+static int gic_irq_set_trigger(int irq, eINT_TRIG trig)
+{
+	u32 val;
+
+	if (trig == INT_LEVEL_TRIGGER) {
+		val = gicd_readl(GICD_ICFGR + IRQ_REG_X16(irq));
+		val &= ~(1 << (2 * IRQ_REG_X16_OFFSET(irq) + 1));
+		gicd_writel(val, GICD_ICFGR + IRQ_REG_X16(irq));
+	} else {
+		val = gicd_readl(GICD_ICFGR + IRQ_REG_X16(irq));
+		val |= (1 << (2 * IRQ_REG_X16_OFFSET(irq) + 1));
+		gicd_writel(val, GICD_ICFGR + IRQ_REG_X16(irq));
+	}
+
+	return 0;
+}
+
+static int gic_irq_enable(int irq)
+{
+#ifdef CONFIG_GICV2
+	u32 val, cpu_mask;
+	u32 shift = (irq % 4) * 8;
+
+	if (irq >= PLATFORM_GIC_MAX_IRQ)
+		return -EINVAL;
+
+	/* set enable */
+	val = gicd_readl(GICD_ISENABLERn + IRQ_REG_X32(irq));
+	val |= 1 << IRQ_REG_X32_OFFSET(irq);
+	gicd_writel(val, GICD_ISENABLERn + IRQ_REG_X32(irq));
+
+	/* set target */
+	cpu_mask = 1 << (read_mpidr() & MPIDR_CPU_MASK);
+	val = gicd_readl(GICD_ITARGETSRn + IRQ_REG_X4(irq));
+	val &= ~(0xFF << shift);
+	val |= (cpu_mask << shift);
+	gicd_writel(val, GICD_ITARGETSRn + IRQ_REG_X4(irq));
+#else
+	u32 val;
+	u64 affinity_val;
+
+	/* set enable */
+	val = gicd_readl(GICD_ISENABLERn + IRQ_REG_X32(irq));
+	val |= 1 << IRQ_REG_X32_OFFSET(irq);
+	gicd_writel(val, GICD_ISENABLERn + IRQ_REG_X32(irq));
+
+	/* set itouter(target) */
+	affinity_val = gicd_irouter_val_from_mpidr(read_mpidr(), 0);
+	gicd_writeq(affinity_val, GICD_IROUTERn + (irq << 3));
+#endif
+
+	return 0;
+}
+
+static int gic_irq_disable(int irq)
+{
+	gicd_writel(1 << IRQ_REG_X32_OFFSET(irq),
+		    GICD_ICENABLERn + IRQ_REG_X32(irq));
+
+	return 0;
+}
+
+/*
+ * irq_set_type - set the irq trigger type for an irq
+ *
+ * @irq: irq number
+ * @type: IRQ_TYPE_{LEVEL,EDGE}_* value - see asm/arch/irq.h
+ */
+static int gic_irq_set_type(int irq, unsigned int type)
+{
+	unsigned int int_type;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_EDGE_FALLING:
+		int_type = 0x1;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+	case IRQ_TYPE_LEVEL_LOW:
+		int_type = 0x0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	gic_irq_set_trigger(irq, int_type);
+
+	return 0;
+}
+
+static void gic_irq_eoi(int irq)
+{
+#ifdef CONFIG_GICV2
+	gicc_writel(irq, GICC_EOIR);
+#else
+	asm volatile("msr " __stringify(ICC_EOIR1_EL1) ", %0" : : "r" ((u64)irq));
+	asm volatile("msr " __stringify(ICC_DIR_EL1) ", %0" : : "r" ((u64)irq));
+	isb();
+#endif
+}
+
+static int gic_irq_get(void)
+{
+#ifdef CONFIG_GICV2
+	return gicc_readl(GICC_IAR) & 0x3fff; /* bit9 - bit0 */
+#else
+	u64 irqstat;
+
+	asm volatile("mrs %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
+	return (u32)irqstat & 0x3ff;
+#endif
+}
 
 static int gic_irq_suspend(void)
 {
@@ -287,22 +244,28 @@ static int gic_irq_suspend(void)
 	gicd_save.ctlr = gicd_readl(GICD_CTLR);
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 16)
-		gicd_save.icfgr[i++] = gicd_readl(GICD_ICFGR + IRQ_REG_X16(irq));
+		gicd_save.icfgr[i++] =
+			gicd_readl(GICD_ICFGR + IRQ_REG_X16(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 4)
-		gicd_save.itargetsr[i++] = gicd_readl(GICD_ITARGETSRn + IRQ_REG_X4(irq));
+		gicd_save.itargetsr[i++] =
+			gicd_readl(GICD_ITARGETSRn + IRQ_REG_X4(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 4)
-		gicd_save.ipriorityr[i++] = gicd_readl(GICD_IPRIORITYRn + IRQ_REG_X4(irq));
+		gicd_save.ipriorityr[i++] =
+			gicd_readl(GICD_IPRIORITYRn + IRQ_REG_X4(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_save.igroupr[i++] = gicd_readl(GICD_IGROUPRn + IRQ_REG_X32(irq));
+		gicd_save.igroupr[i++] =
+			gicd_readl(GICD_IGROUPRn + IRQ_REG_X32(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_save.ispendr[i++] = gicd_readl(GICD_ISPENDRn + IRQ_REG_X32(irq));
+		gicd_save.ispendr[i++] =
+			gicd_readl(GICD_ISPENDRn + IRQ_REG_X32(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_save.isenabler[i++] = gicd_readl(GICD_ISENABLERn + IRQ_REG_X32(irq));
+		gicd_save.isenabler[i++] =
+			gicd_readl(GICD_ISENABLERn + IRQ_REG_X32(irq));
 
 	dsb();
 
@@ -324,27 +287,34 @@ static int gic_irq_resume(void)
 
 	/* Clear all interrupt */
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_writel(0xffffffff, GICD_ICENABLERn + IRQ_REG_X32(irq));
+		gicd_writel(0xffffffff,
+			    GICD_ICENABLERn + IRQ_REG_X32(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 16)
-		gicd_writel(gicd_save.icfgr[i++], GICD_ICFGR + IRQ_REG_X16(irq));
+		gicd_writel(gicd_save.icfgr[i++],
+			    GICD_ICFGR + IRQ_REG_X16(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 4)
-		gicd_writel(gicd_save.itargetsr[i++], GICD_ITARGETSRn + IRQ_REG_X4(irq));
+		gicd_writel(gicd_save.itargetsr[i++],
+			    GICD_ITARGETSRn + IRQ_REG_X4(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 4)
-		gicd_writel(gicd_save.ipriorityr[i++], GICD_IPRIORITYRn + IRQ_REG_X4(irq));
+		gicd_writel(gicd_save.ipriorityr[i++],
+			    GICD_IPRIORITYRn + IRQ_REG_X4(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_writel(gicd_save.igroupr[i++], GICD_IGROUPRn + IRQ_REG_X32(irq));
+		gicd_writel(gicd_save.igroupr[i++],
+			    GICD_IGROUPRn + IRQ_REG_X32(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_writel(gicd_save.isenabler[i++], GICD_ISENABLERn + IRQ_REG_X32(irq));
+		gicd_writel(gicd_save.isenabler[i++],
+			    GICD_ISENABLERn + IRQ_REG_X32(irq));
 
 	for (i = 0, irq = 0; irq < irq_nr; irq += 32)
-		gicd_writel(gicd_save.ispendr[i++], GICD_ISPENDRn + IRQ_REG_X32(irq));
+		gicd_writel(gicd_save.ispendr[i++],
+			    GICD_ISPENDRn + IRQ_REG_X32(irq));
+
 	dsb();
-
 	gicc_writel(gicc_save.pmr, GICC_PMR);
 	gicc_writel(gicc_save.ctlr, GICC_CTLR);
 	gicd_writel(gicd_save.ctlr, GICD_CTLR);
@@ -358,27 +328,39 @@ static int gic_irq_init(void)
 {
 	/* GICV3 done in: arch/arm/cpu/armv8/start.S */
 #ifdef CONFIG_GICV2
-	/* end of interrupt */
-	g_gicc->icceoir = PLATFORM_GIC_IRQS_NR;
+	u32 val;
+
+	/*
+	 * If system boot without Miniloader:
+	 *		"Maskrom => Trust(optional) => U-Boot"
+	 *
+	 * IRQ_USB_OTG must be acked by GICC_EIO due to maskrom jumps to the
+	 * U-Boot in its USB interrupt. Without this ack, the GICC_IAR always
+	 * return a spurious interrupt ID 1023 for USB OTG interrupt.
+	 */
+#ifdef IRQ_USB_OTG
+	gicc_writel(IRQ_USB_OTG, GICC_EOIR);
+#endif
 
 	/* disable gicc and gicd */
-	g_gicc->iccicr = 0x00;
-	g_gicd->icddcr = 0x00;
+	gicc_writel(0, GICC_CTLR);
+	gicd_writel(0, GICD_CTLR);
 
-	/* enable interrupt */
-	g_gicd->icdicer[0] = 0xFFFFFFFF;
-	g_gicd->icdicer[1] = 0xFFFFFFFF;
-	g_gicd->icdicer[2] = 0xFFFFFFFF;
-	g_gicd->icdicer[3] = 0xFFFFFFFF;
-	g_gicd->icdicfr[3] &= ~(1 << 1);
+	/* disable interrupt */
+	gicd_writel(0xffffffff, GICD_ICENABLERn + 0);
+	gicd_writel(0xffffffff, GICD_ICENABLERn + 4);
+	gicd_writel(0xffffffff, GICD_ICENABLERn + 8);
+	gicd_writel(0xffffffff, GICD_ICENABLERn + 12);
+
+	val = gicd_readl(GICD_ICFGR + 12);
+	val &= ~(1 << 1);
+	gicd_writel(val, GICD_ICFGR + 12);
 
 	/* set interrupt priority threhold min: 256 */
 	int_set_prio_filter(0xff);
 	int_enable_secure_signal();
 	int_enable_nosecure_signal();
 	int_enable_distributor();
-
-	g_gic_cpumask = gic_get_cpumask();
 #endif
 
 	return 0;
@@ -396,7 +378,7 @@ static struct irq_chip gic_irq_chip = {
 	.irq_set_type	= gic_irq_set_type,
 };
 
-struct irq_chip *arch_gic_irq_init(void)
+struct irq_chip *arch_gic_get_irqchip(void)
 {
 	return &gic_irq_chip;
 }

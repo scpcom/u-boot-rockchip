@@ -37,6 +37,8 @@ enum rkusb_cmd {
 	RKUSB_SPI_READ_10	= 0x21,
 	RKUSB_SPI_WRITE_10	= 0x22,
 	RKUSB_LBA_ERASE		= 0x25,
+	RKUSB_VS_WRITE		= 0x26,
+	RKUSB_VS_READ		= 0x27,
 	RKUSB_SESSION		= 0x30,
 	RKUSB_READ_CAPACITY	= 0xAA,
 	RKUSB_RESET		= 0xFF,
@@ -72,6 +74,8 @@ static inline int rkusb_cmd_process(struct fsg_common *common,
 /* Wait at maximum 60 seconds for cable connection */
 #define RKUSB_CABLE_READY_TIMEOUT	60
 #define SECTOR_SIZE			0x200
+
+#define RKUSB_READ_LIMIT_ADDR	        (32 * 2048)	/* 32MB */
 
 struct rockusb {
 	struct ums *ums;
