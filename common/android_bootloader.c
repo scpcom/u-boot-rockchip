@@ -121,6 +121,7 @@ static int get_partition_unique_uuid(char *partition,
 	return 0;
 }
 
+#ifdef CONFIG_ANDROID_AVB
 static void reset_cpu_if_android_ab(void)
 {
 	printf("Reset in AB system.\n");
@@ -132,6 +133,7 @@ static void reset_cpu_if_android_ab(void)
 	 */
 	reset_cpu(0);
 }
+#endif
 
 static void update_root_uuid_if_android_ab(void)
 {
