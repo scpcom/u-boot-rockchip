@@ -442,6 +442,7 @@
 
 &i2c0 {
 	status = "okay";
+	u-boot,dm-pre-reloc;
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
 	clock-frequency = <400000>;
@@ -491,6 +492,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l &pmic_dvs2>;
 		rockchip,system-power-controller;
+		u-boot,dm-pre-reloc;
+		status = "okay";
 		wakeup-source;
 		#clock-cells = <1>;
 		clock-output-names = "xin32k", "rk808-clkout2";
