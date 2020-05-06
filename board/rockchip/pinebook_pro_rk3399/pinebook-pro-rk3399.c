@@ -57,10 +57,12 @@ int board_init(void)
 		goto out;
 	}
 
+#if 0
 	ret = regulators_enable_boot_on(true);
 	if (ret) {
 		debug("%s: Cannot enable boot on regulator\n", __func__);
 	}
+#endif
 
 	fix_lcd_backling_pull_mode();
 
