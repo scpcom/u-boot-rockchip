@@ -380,6 +380,7 @@
 
 	route {
 		route_hdmi: route-hdmi {
+			status = "okay";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
