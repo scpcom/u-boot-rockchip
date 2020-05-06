@@ -8,6 +8,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3399.dtsi"
+#include "rk3399-u-boot.dtsi"
 
 / {
 	model = "Pine64 RockPro64";
@@ -141,17 +142,23 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc5v0_host";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 
 	vcc5v0_typec0: vcc5v0-typec0-en {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_typec0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		gpio = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_phy";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
@@ -208,6 +215,7 @@
 	clock-frequency = <400000>;
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
+	u-boot,dm-pre-reloc;
 	status = "okay";
 
 	rk808: pmic@1b {
@@ -220,6 +228,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
+		u-boot,dm-pre-reloc;
+		status = "okay";
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sys>;
