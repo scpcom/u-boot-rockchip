@@ -41,10 +41,14 @@ int rockchip_get_boot_mode(void)
 	struct bootloader_message *bmsg = NULL;
 	struct blk_desc *dev_desc;
 	disk_partition_t part_info;
+#if (CONFIG_ROCKCHIP_BOOT_MODE_REG != 0)
 	uint32_t reg_boot_mode;
+#endif
 	char *env_reboot_mode;
 	static int boot_mode = -1;	/* static */
+#if (CONFIG_ROCKCHIP_BOOT_MODE_REG != 0)
 	int clear_boot_reg = 0;
+#endif
 	int ret, cnt;
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 	u32 bcb_offset = android_bcb_msg_sector_offset();
@@ -100,6 +104,10 @@ int rockchip_get_boot_mode(void)
 	}
 
 fallback:
+#if (CONFIG_ROCKCHIP_BOOT_MODE_REG == 0)
+	printf("boot mode: normal\n");
+	boot_mode = BOOT_MODE_NORMAL;
+#else
 	/*
 	 * Boot mode priority
 	 *
@@ -162,6 +170,7 @@ fallback:
 	 */
 	if (clear_boot_reg)
 		writel(BOOT_NORMAL, (void *)CONFIG_ROCKCHIP_BOOT_MODE_REG);
+#endif
 
 	return boot_mode;
 }

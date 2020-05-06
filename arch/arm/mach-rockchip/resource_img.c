@@ -42,6 +42,14 @@ int load_resource_file(void *buf, const char *name,
 	run_command(cmd, 0);
 
 	filesize = env_get_ulong("filesize", 16, 0);
+
+	if ((filesize < len) && (!dev_no)) {
+		sprintf(cmd, "fatload mmc %d:1 0x%p %s 0x%x 0x%x", 1, (void *)p, name, len, offset);
+		run_command(cmd, 0);
+
+		filesize = env_get_ulong("filesize", 16, 0);
+	}
+
 	if (filesize < len) {
 		printf("load_resource_file: no %s or empty file\n", name);
 		return -ENOENT;

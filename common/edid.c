@@ -25,6 +25,7 @@
 #include <linux/fb.h>
 #include <linux/hdmi.h>
 #include <linux/string.h>
+#include <asm/arch-rockchip/resource_img.h>
 
 #define EDID_EST_TIMINGS 16
 #define EDID_STD_TIMINGS 8
@@ -5412,7 +5413,7 @@ drm_do_probe_ddc_edid(struct ddc_adapter *adap, u8 *buf, unsigned int block,
 	return ret == xfers ? 0 : -1;
 }
 
-int drm_do_get_edid(struct ddc_adapter *adap, u8 *edid)
+static int _drm_do_get_edid(struct ddc_adapter *adap, u8 *edid)
 {
 	int i, j, block_num, block = 0;
 	bool edid_corrupt;
@@ -5475,6 +5476,54 @@ err:
 	/* clear all read edid block, include invalid block */
 	memset(edid, 0, HDMI_EDID_BLOCK_SIZE * (block + 1));
 	return -EFAULT;
+}
+
+static int load_edid(u8 *edid)
+{
+	char *header;
+	int size, len;
+	int ret = 0;
+	int block_num;
+
+	header = malloc(512);
+	if (!header) {
+		return -ENOMEM;
+	}
+
+	len = rockchip_read_resource_file(header, "edid.bin", 0, HDMI_EDID_BLOCK_SIZE);
+	if (len < HDMI_EDID_BLOCK_SIZE)
+		len = rockchip_read_resource_file(header, "edid.bin", 0, 512);
+
+	if (len < HDMI_EDID_BLOCK_SIZE) {
+		ret = -EINVAL;
+		goto free_header;
+	}
+
+	block_num = header[0x7e];
+	block_num += 1;
+	size = block_num*HDMI_EDID_BLOCK_SIZE;
+
+	len = rockchip_read_resource_file(edid, "edid.bin", 0, size);
+	if (len != size) {
+		ret = -EINVAL;
+		goto free_header;
+	}
+
+free_header:
+	free(header);
+
+	return ret;
+}
+
+int drm_do_get_edid(struct ddc_adapter *adap, u8 *edid)
+{
+	int ret;
+
+	ret = _drm_do_get_edid(adap, edid);
+	if (ret < 0)
+		ret =  load_edid(edid);
+
+	return ret;
 }
 
 static ssize_t hdmi_ddc_read(struct ddc_adapter *adap, u16 addr, u8 offset,
