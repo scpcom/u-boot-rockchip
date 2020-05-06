@@ -67,7 +67,7 @@ static void rk3399_emmc_phy_power_on(struct rockchip_emmc_phy *phy, u32 clock)
 
 	writel(RK_CLRSETBITS(7 << 4, 0), &phy->emmcphy_con[6]);
 	writel(RK_CLRSETBITS(1 << 11, 1 << 11), &phy->emmcphy_con[0]);
-	writel(RK_CLRSETBITS(0xf << 7, 6 << 7), &phy->emmcphy_con[0]);
+	writel(RK_CLRSETBITS(0xf << 7, 4 << 7), &phy->emmcphy_con[0]);
 
 	/*
 	 * According to the user manual, calpad calibration
@@ -124,6 +124,7 @@ static void rk3399_emmc_phy_power_off(struct rockchip_emmc_phy *phy)
 	writel(RK_CLRSETBITS(1 << 1, 0), &phy->emmcphy_con[6]);
 }
 
+#if 0
 static int rk3399_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	unsigned int div, clk = 0, timeout;
@@ -217,6 +218,7 @@ static int rk3399_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	return 0;
 }
+#endif
 
 static int arasan_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
@@ -228,7 +230,7 @@ static int arasan_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (cycle_phy)
 		rk3399_emmc_phy_power_off(priv->phy);
 
-	rk3399_sdhci_set_clock(host, clock);
+	sdhci_set_clock(host, clock);
 
 	if (cycle_phy)
 		rk3399_emmc_phy_power_on(priv->phy, clock);
