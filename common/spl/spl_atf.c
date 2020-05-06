@@ -51,7 +51,10 @@ static struct bl31_params *bl2_plat_get_bl31_params(uintptr_t bl32_entry,
 	SET_PARAM_HEAD(bl2_to_bl31_params->bl31_image_info,
 		       ATF_PARAM_IMAGE_BINARY, ATF_VERSION_1, 0);
 
-	/* Fill BL32 related information if it exists */
+	if (bl32_entry == -1)
+		goto bl33_setup;
+
+	/* Fill BL32 related information */
 	bl2_to_bl31_params->bl32_ep_info = &bl31_params_mem.bl32_ep_info;
 	bl32_ep_info = &bl31_params_mem.bl32_ep_info;
 	SET_PARAM_HEAD(bl32_ep_info, ATF_PARAM_EP, ATF_VERSION_1,
@@ -64,9 +67,6 @@ static struct bl31_params *bl2_plat_get_bl31_params(uintptr_t bl32_entry,
 	bl2_to_bl31_params->bl32_image_info = &bl31_params_mem.bl32_image_info;
 	SET_PARAM_HEAD(bl2_to_bl31_params->bl32_image_info,
 		       ATF_PARAM_IMAGE_BINARY, ATF_VERSION_1, 0);
-#ifndef BL32_BASE
-	bl2_to_bl31_params->bl32_ep_info->pc = 0;
-#endif /* BL32_BASE */
 
 bl33_setup:
 	/* Fill BL33 related information */
