@@ -54,81 +54,15 @@ __weak int rockchip_dnl_key_pressed(void)
 		return false;
 }
 
-void rockchip_blink_power(int times)
-{
-		for (int i = 0; i < times; ++i) {
-			cli_simple_run_command("led power off", 0);
-			mdelay(100);
-			cli_simple_run_command("led power on", 0);
-			mdelay(100);
-		}
-}
-
-int rockchip_dnl_mode(int num_modes)
-{
-	int mode = 0;
-
-	while(mode < num_modes) {
-		++mode;
-
-		printf("rockchip_dnl_mode = %d mode\n", mode);
-		rockchip_blink_power(mode);
-
-		// return early
-		if (mode == num_modes) {
-			goto end;
-		}
-
-		// wait 2 seconds
-		for (int i = 0; i < 100; ++i) {
-			if (!rockchip_dnl_key_pressed()) {
-				goto end;
-			}
-			mdelay(20);
-		}
-	}
-
-end:
-	cli_simple_run_command("led power off", 0);
-	cli_simple_run_command("led standby on", 0);
-	return mode;
-}
-
 void rockchip_dnl_mode_check(void)
 {
-	if (!rockchip_dnl_key_pressed()) {
-		return 0;
-	}
-
-	switch(rockchip_dnl_mode(4)) {
-	case 0:
-		return;
-
-	case 1:
-		printf("entering ums mode...\n");
-		cli_simple_run_command("ums 0 mmc 0", 0);
-		cli_simple_run_command("ums 0 mmc 1", 0);
-		break;
-
-	case 2:
-		printf("entering fastboot mode...\n");
-		cli_simple_run_command("mmc dev 0; fastboot usb 0", 0);
-		cli_simple_run_command("mmc dev 1; fastboot usb 0", 0);
-		break;
-
-	case 3:
-		printf("entering download mode...\n");
+	if (rockchip_dnl_key_pressed()) {
+		printf("download key pressed, entering download mode...\n");
+		/* If failed, we fall back to bootrom download mode */
 		cli_simple_run_command("rockusb 0 mmc 0", 0);
-		cli_simple_run_command("rockusb 0 mmc 1", 0);
-		break;
-
-	case 4:
-		printf("entering maskrom mode...\n");
-		break;
+		set_back_to_bootrom_dnl_flag();
+		do_reset(NULL, 0, 0, NULL);
 	}
-
-	set_back_to_bootrom_dnl_flag();
-	do_reset(NULL, 0, 0, NULL);
 }
 
 int setup_boot_mode(void)
@@ -149,23 +83,8 @@ int setup_boot_mode(void)
 	writel(BOOT_NORMAL, reg);
 
 	switch (boot_mode) {
-	case BOOT_NORMAL:
-		printf("normal boot\n");
-		env_set("boot_mode", "normal");
-		break;
-	case BOOT_LOADER:
-		printf("enter Rockusb!\n");
-		env_set("boot_mode", "loader");
-		env_set("preboot", "setenv preboot; rockusb 0 mmc 0");
-		break;
-	case BOOT_RECOVERY:
-		printf("enter recovery!\n");
-		env_set("boot_mode", "recovery");
-		env_set("reboot_mode", "recovery");
-		break;
 	case BOOT_FASTBOOT:
 		printf("enter fastboot!\n");
-		env_set("boot_mode", "fastboot");
 #if defined(CONFIG_FASTBOOT_FLASH_MMC_DEV)
 		snprintf(env_preboot, 256,
 				"setenv preboot; mmc dev %x; fastboot usb 0; ",
@@ -176,15 +95,21 @@ int setup_boot_mode(void)
 #endif
 		env_set("preboot", env_preboot);
 		break;
-	case BOOT_CHARGING:
-		printf("enter charging!\n");
-		env_set("boot_mode", "charging");
-		env_set("preboot", "setenv preboot; charge");
-		break;
 	case BOOT_UMS:
 		printf("enter UMS!\n");
-		env_set("boot_mode", "ums");
 		env_set("preboot", "setenv preboot; ums mmc 0");
+		break;
+	case BOOT_LOADER:
+		printf("enter Rockusb!\n");
+		env_set("preboot", "setenv preboot; rockusb 0 mmc 0");
+		break;
+	case BOOT_CHARGING:
+		printf("enter charging!\n");
+		env_set("preboot", "setenv preboot; charge");
+		break;
+	case BOOT_RECOVERY:
+		printf("enter Recovery mode!\n");
+		env_set("reboot_mode", "recovery");
 		break;
 	}
 
