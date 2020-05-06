@@ -353,6 +353,10 @@
 	cpu-supply = <&vdd_cpu_b>;
 };
 
+&uart2 {
+	status = "okay";
+};
+
 &dmc {
 	status = "okay";
 	center-supply = <&vdd_center>;
