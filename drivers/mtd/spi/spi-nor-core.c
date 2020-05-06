@@ -524,11 +524,8 @@ static int read_bar(struct spi_nor *nor, const struct flash_info *info)
  */
 static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 {
-	struct spi_mem_op op =
-		SPI_MEM_OP(SPI_MEM_OP_CMD(nor->erase_opcode, 1),
-			   SPI_MEM_OP_ADDR(nor->addr_width, addr, 1),
-			   SPI_MEM_OP_NO_DUMMY,
-			   SPI_MEM_OP_NO_DATA);
+	u8 buf[SPI_NOR_MAX_ADDR_WIDTH];
+	int i;
 
 	if (nor->erase)
 		return nor->erase(nor, addr);
@@ -537,7 +534,12 @@ static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 	 * Default implementation, if driver doesn't have a specialized HW
 	 * control
 	 */
-	return spi_mem_exec_op(nor->spi, &op);
+	for (i = nor->addr_width - 1; i >= 0; i--) {
+		buf[i] = addr & 0xff;
+		addr >>= 8;
+	}
+
+	return nor->write_reg(nor, nor->erase_opcode, buf, nor->addr_width);
 }
 
 /*
