@@ -399,8 +399,8 @@
 };
 
 &i2c0 {
-	status = "okay";
 	u-boot,dm-pre-reloc;
+	status = "okay";
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
 	clock-frequency = <400000>;
