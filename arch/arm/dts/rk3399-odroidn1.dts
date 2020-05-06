@@ -392,7 +392,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopl_out_dp>;
+			connect = <&vopl_out_edp>;
 		};
 	};
 };
@@ -971,7 +971,7 @@
 
 	/* Don't use vopl for hdmi */
 	vopl_out: port {
-		/delete-node/ endpoint@2;
+		/delete-node/ endpoint@1;
 	};
 };
 
