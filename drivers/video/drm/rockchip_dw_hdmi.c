@@ -686,19 +686,19 @@ void drm_rk_selete_output(struct hdmi_edid_data *edid_data,
 #endif
 	if (!dev_desc) {
 		printf("%s: Could not find device\n", __func__);
-		return;
+		goto out;
 	}
 
 	if (part_get_info_by_name(dev_desc, "baseparameter", &part_info) < 0) {
 		printf("Could not find baseparameter partition\n");
-		return;
+		goto out;
 	}
 
 	ret = blk_dread(dev_desc, part_info.start, 1,
 			(void *)baseparameter_buf);
 	if (ret < 0) {
 		printf("read baseparameter failed\n");
-		return;
+		goto out;
 	}
 
 	memcpy(&base_parameter, baseparameter_buf, sizeof(base_parameter));
@@ -735,6 +735,7 @@ void drm_rk_selete_output(struct hdmi_edid_data *edid_data,
 		}
 	}
 
+	out:
 	if (screen_info)
 		printf("base_parameter.mode:%dx%d\n",
 		       screen_info->mode.hdisplay,
