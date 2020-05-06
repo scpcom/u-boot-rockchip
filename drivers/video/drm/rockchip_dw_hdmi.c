@@ -339,6 +339,10 @@ static const struct base_drm_display_mode resolution_white[] = {
 			4272, 4400, 2160, 2168, 2178, 2250, 0,
 			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 	.vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135, },
+	{ DRM_BASE_MODE(32000, 1024, 1064,
+			1112, 1152, 600, 613, 616, 645, 0,
+			DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
+	.vrefresh = 43, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 };
 
 static bool drm_mode_equal(const struct base_drm_display_mode *mode1,
