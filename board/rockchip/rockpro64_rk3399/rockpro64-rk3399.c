@@ -37,7 +37,7 @@ static int fix_usb2_vbus_pull_mode(void)
 
 int board_init(void)
 {
-	struct udevice *pinctrl, *regulator;
+	struct udevice *pinctrl;
 	int ret;
 
 	/*
