@@ -53,20 +53,20 @@ static char* read_cfgload(void)
 	char *tmp;
 	u32 dev_no;
 
-	tmp = getenv("loadaddr");
+	tmp = env_get("loadaddr");
 	if (NULL == tmp)
 		p = (char *)CONFIG_SYS_LOAD_ADDR;
 	else
 		p = (char *)simple_strtoul(tmp, NULL, 16);
 
-	setenv("filesize", "0");
+	env_set("filesize", "0");
 
-	dev_no = getenv_ulong("bootdev", 10, 0);
+	dev_no = env_get_ulong("bootdev", 10, 0);
 
 	sprintf(cmd, "fatload mmc %d:1 0x%p boot.ini", dev_no, (void *)p);
 	run_command(cmd, 0);
 
-	filesize = getenv_ulong("filesize", 16, 0);
+	filesize = env_get_ulong("filesize", 16, 0);
 	if (0 == filesize) {
 		printf("cfgload: no boot.ini or empty file\n");
 		return NULL;

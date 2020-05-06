@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <environment.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
 #include <mmc.h>
@@ -68,11 +69,11 @@ int board_scan_boot_storage(void)
 				 * on eMMC, so related env is set
 				 * and then exit this routine.
 				 */
-				char *s = getenv("storagemedia");
+				char *s = env_get("storagemedia");
 				if ((s == 0) || (strcmp(s, "emmc") != 0)) {
-					setenv("storagemedia", "emmc");
-					setenv("bootdev", "0");
-					saveenv();
+					env_set("storagemedia", "emmc");
+					env_set("bootdev", "0");
+					env_save();
 				}
 
 				return 0;
@@ -88,11 +89,11 @@ int board_scan_boot_storage(void)
 		dev_desc = blk_get_dev("mmc", MMC_DEV_DWMMC);
 		if (dev_desc) {
 			if (0 == board_check_magic(dev_desc)) {
-				char *s = getenv("storagemedia");
+				char *s = env_get("storagemedia");
 				if ((s == 0) || (strcmp(s, "sd") != 0)) {
-					setenv("storagemedia", "sd");
-					setenv("bootdev", "1");
-					saveenv();
+					env_set("storagemedia", "sd");
+					env_set("bootdev", "1");
+					env_save();
 				}
 
 				return 0;

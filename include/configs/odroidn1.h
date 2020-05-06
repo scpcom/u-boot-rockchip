@@ -46,6 +46,8 @@
 		"load mmc ${bootdev} 0x01f00000 rk3399-odroidn1-linux.dtb; "	\
 		"booti 0x02000000 - 0x01f00000\0"
 
+#ifndef CONFIG_BOARD_LATE_INIT
 #define CONFIG_BOARD_LATE_INIT
+#endif
 
 #endif
