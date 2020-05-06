@@ -36,6 +36,7 @@
 
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
+	ROCKCHIP_DEVICE_SETTINGS \
 	"setbootargs=setenv bootargs earlyprintk swiotlb=1 "		\
 		"console=ttyFIQ0,115200n8 "				\
 		"rw root=/dev/mmcblk1p2 rootfstype=ext4 rootwait "	\
@@ -48,6 +49,18 @@
 
 #ifndef CONFIG_BOARD_LATE_INIT
 #define CONFIG_BOARD_LATE_INIT
+#endif
+
+#define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+
+#define ROCKCHIP_DEVICE_SETTINGS \
+		"stdout=serial,vidconsole\0" \
+		"stderr=serial,vidconsole\0"
+
+#ifndef CONFIG_DRM_ROCKCHIP_VIDEO_FRAMEBUFFER
+#define CONFIG_DRM_ROCKCHIP_VIDEO_FRAMEBUFFER 1
 #endif
 
 #endif
