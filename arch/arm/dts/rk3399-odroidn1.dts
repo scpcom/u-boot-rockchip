@@ -889,16 +889,6 @@
 	};
 
 	pmic {
-		vsel1_gpio: vsel1-gpio {
-			rockchip,pins =
-				<1 17 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
-		vsel2_gpio: vsel2-gpio {
-			rockchip,pins =
-			<1 14 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
 				<1 23 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -907,6 +897,16 @@
 		pmic_dvs2: pmic-dvs2 {
 			rockchip,pins =
 				<1 18 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		vsel1_gpio: vsel1-gpio {
+			rockchip,pins =
+				<1 17 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		vsel2_gpio: vsel2-gpio {
+			rockchip,pins =
+			<1 14 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
