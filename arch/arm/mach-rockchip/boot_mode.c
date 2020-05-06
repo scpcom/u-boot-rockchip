@@ -12,6 +12,13 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef CONFIG_ROCKCHIP_VENDOR_PARTITION
+int vendor_storage_read(u16 id, void *pbuf, u16 size)
+{
+	return -EINVAL;
+}
+#endif
+
 /*
  * Generally, we have 3 ways to get reboot mode:
  *
