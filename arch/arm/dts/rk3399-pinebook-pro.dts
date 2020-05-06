@@ -8,6 +8,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3399.dtsi"
+#include "rk3399-u-boot.dtsi"
 
 / {
 	model = "Pine64 Pinebook Pro";
@@ -134,6 +135,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc5v0_host";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 
 	vcc5v0_usb3_host: vcc5v0-usb3-host-regulator {
@@ -143,6 +146,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_usb3_drv>;
 		regulator-name = "vcc5v0_usb3_host";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 	};
 
@@ -182,6 +187,7 @@
 	clock-frequency = <400000>;
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
+	u-boot,dm-pre-reloc;
 	status = "okay";
 
 	rk808: pmic@1b {
@@ -194,6 +200,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
+		u-boot,dm-pre-reloc;
+		status = "okay";
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sys>;
