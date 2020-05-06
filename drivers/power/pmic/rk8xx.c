@@ -33,11 +33,6 @@ static const struct pmic_child_info fuel_gauge_info[] = {
 	{ },
 };
 
-static const struct pmic_child_info led_info[] = {
-	{ .prefix = "led", .driver = "rk8xx_led"},
-	{ },
-};
-
 static int rk8xx_reg_count(struct udevice *dev)
 {
 	return RK808_NUM_OF_REGS;
@@ -132,10 +127,6 @@ static int rk8xx_bind(struct udevice *dev)
 		debug("%s: %s - no child found\n", __func__, dev->name);
 
 	children = pmic_bind_children(dev, dev->node, fuel_gauge_info);
-	if (!children)
-		debug("%s: %s - no child found\n", __func__, dev->name);
-
-	children = pmic_bind_children(dev, dev->node, led_info);
 	if (!children)
 		debug("%s: %s - no child found\n", __func__, dev->name);
 
