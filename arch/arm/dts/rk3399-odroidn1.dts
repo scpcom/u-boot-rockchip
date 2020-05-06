@@ -177,6 +177,7 @@
 	i2c-scl-rising-time-ns = <168>;
 	i2c-scl-falling-time-ns = <4>;
 	status = "okay";
+	u-boot,dm-pre-reloc;
 
 	rk808: pmic@1b {
 		compatible = "rockchip,rk808";
@@ -188,6 +189,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
+		u-boot,dm-pre-reloc;
+		status = "okay";
 		wakeup-source;
 
 		vcc1-supply = <&vcc3v3_sys>;
