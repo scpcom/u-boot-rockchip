@@ -494,7 +494,9 @@ int rockchip_read_dtb_file(void *fdt_addr)
 		return -ENOMEM;
 
 #if defined(CONFIG_ANDROID_BOOT_IMAGE) && defined(CONFIG_OF_LIBFDT_OVERLAY)
+#ifdef CONFIG_CMD_DTIMG
 	android_fdt_overlay_apply((void *)fdt_addr);
+#endif
 #endif
 
 	return 0;
