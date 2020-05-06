@@ -13,7 +13,7 @@
 #include <fs.h>
 #include <asm/io.h>
 #include <version.h>
-#include <libfdt.h>
+#include <linux/libfdt.h>
 
 #include "menu.h"
 #include "cli.h"
