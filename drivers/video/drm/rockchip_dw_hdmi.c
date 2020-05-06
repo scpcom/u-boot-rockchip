@@ -339,10 +339,25 @@ static const struct base_drm_display_mode resolution_white[] = {
 			4272, 4400, 2160, 2168, 2178, 2250, 0,
 			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 	.vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135, },
+	/* 0x33 - 1600x1200@60Hz */
+	{ DRM_BASE_MODE(162000, 1600, 1664,
+			1856, 2160, 1200, 1201, 1204, 1250, 0,
+			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	.vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
+	/* 0x44 - 1920x1200@60Hz RB */
+	{ DRM_BASE_MODE(154000, 1920, 1968,
+			2000, 2080, 1200, 1203, 1209, 1235, 0,
+			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC),
+	.vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE, },
+	/* 0x45 - 1920x1200@60Hz */
+	{ DRM_BASE_MODE(193250, 1920, 2056,
+			2256, 2592, 1200, 1203, 1209, 1245, 0,
+			DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC),
+	.vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE, },
 	{ DRM_BASE_MODE(32000, 1024, 1064,
 			1112, 1152, 600, 613, 616, 645, 0,
 			DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
-	.vrefresh = 43, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
+	.vrefresh = 43, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE, },
 };
 
 static bool drm_mode_equal(const struct base_drm_display_mode *mode1,
