@@ -206,6 +206,7 @@
 };
 
 &display_subsystem {
+	/delete-property/ devfreq;
 	status = "okay";
 };
 
