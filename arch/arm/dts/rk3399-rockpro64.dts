@@ -92,10 +92,10 @@
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
-		regulator-always-on;
-		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
 		vin-supply = <&vcc_sys>;
 	};
 
@@ -121,11 +121,11 @@
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		regulator-name = "vdd_log";
-		regulator-always-on;
-		regulator-boot-on;
 		regulator-init-microvolt = <900000>;
 		regulator-min-microvolt = <430000>;
 		regulator-max-microvolt = <1400000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	clkin_gmac: external-gmac-clock {
