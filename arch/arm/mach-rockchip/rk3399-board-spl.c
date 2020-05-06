@@ -11,7 +11,6 @@
 #include <spl.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch/bootrom.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/periph.h>
@@ -19,33 +18,12 @@
 #include <asm/arch/timer.h>
 #include <dm/pinctrl.h>
 #include <power/regulator.h>
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/rockchip.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 u32 spl_boot_device(void)
 {
-	u32 bootdevice_brom_id = readl(RK3399_BROM_BOOTSOURCE_ID_ADDR);
-	switch (bootdevice_brom_id) {
-		case BROM_BOOTSOURCE_EMMC:
-			printf("booted from eMMC\n");
-			return BOOT_DEVICE_MMC1;
-
-		case BROM_BOOTSOURCE_SD:
-			printf("booted from SD\n");
-			return BOOT_DEVICE_MMC2;
-
-		case BROM_BOOTSOURCE_SPINOR:
-			printf("booted from SPI flash\n");
-			return BOOT_DEVICE_SPI;
-
-		case BROM_BOOTSOURCE_USB:
-			printf("booted from USB\n");
-			return BOOT_DEVICE_MMC1;
-	}
-
-	return BOOT_DEVICE_BOOTROM;
+	return BOOT_DEVICE_MMC1;
 }
 
 u32 spl_boot_mode(const u32 boot_device)
@@ -71,19 +49,6 @@ void secure_timer_init(void)
 	writel(0, TIMER_CHN10_BASE + TIMER_INIT_COUNT_L);
 	writel(0, TIMER_CHN10_BASE + TIMER_INIT_COUNT_H);
 	writel(TIMER_EN | TIMER_FMODE, TIMER_CHN10_BASE + TIMER_CONTROL_REG);
-}
-
-void board_init_power_standby_leds(void)
-{
-#define GPIO0_BASE  0xff720000
-
-	struct rockchip_gpio_regs * const gpio0 = (void *)GPIO0_BASE;
-
-	// set GPIO0_A2/B3 to GPIO_ACTIVE_HIGH
-	// set GPIO0_A2/B3 to OUTPUT
-	int mask = (1UL << RK_PA2) | (1UL << RK_PB3);
-	setbits_le32(&gpio0->swport_dr, mask);
-	setbits_le32(&gpio0->swport_ddr, mask);
 }
 
 void board_debug_uart_init(void)
@@ -135,7 +100,7 @@ void board_init_f(ulong dummy)
 	 * printascii("string");
 	 */
 	debug_uart_init();
-	printascii("U-Boot SPL board init\n");
+	printascii("U-Boot SPL board init");
 #endif
 
 	rk_clrsetreg(SGRF_DDR_RGN_CON16, 0x1FF, 0x200);
@@ -150,9 +115,6 @@ void board_init_f(ulong dummy)
 		debug("spl_early_init() failed: %d\n", ret);
 		hang();
 	}
-
-	preloader_console_init();
-	board_init_power_standby_leds();
 
 	/*
 	 * Disable DDR and SRAM security regions.
