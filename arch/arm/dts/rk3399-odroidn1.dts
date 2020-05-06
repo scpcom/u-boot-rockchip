@@ -156,6 +156,10 @@
 	status = "okay";
 };
 
+&display_subsystem {
+	status = "okay";
+};
+
 &emmc_phy {
 	status = "okay";
 };
@@ -173,6 +177,14 @@
 	snps,reset-delays-us = <0 10000 50000>;
 	tx_delay = <0x100>;
 	rx_delay = <0x11>;
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+       status = "disabled";
+};
+
+&hdmi_in_vopb {
 	status = "okay";
 };
 
@@ -602,3 +614,24 @@
 &dwc3_typec1 {
 	status = "okay";
 };
+
+&hdmi {
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&route_edp {
+	status = "disabled";
+};
+
+&route_hdmi {
+	status = "okay";
+};
+
