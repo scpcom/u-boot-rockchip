@@ -898,7 +898,6 @@ struct rockchip_logo_cache *find_or_alloc_logo_cache(const char *bmp)
 /* Note: used only for rkfb kernel driver */
 static int load_kernel_bmp_logo(struct logo_info *logo, const char *bmp_name)
 {
-#ifdef CONFIG_ROCKCHIP_RESOURCE_IMAGE
 	void *dst = NULL;
 	int len, size;
 	struct bmp_header *header;
@@ -925,14 +924,12 @@ static int load_kernel_bmp_logo(struct logo_info *logo, const char *bmp_name)
 	}
 
 	logo->mem = dst;
-#endif
 
 	return 0;
 }
 
 static int load_bmp_logo(struct logo_info *logo, const char *bmp_name)
 {
-#ifdef CONFIG_ROCKCHIP_RESOURCE_IMAGE
 	struct rockchip_logo_cache *logo_cache;
 	struct bmp_header *header;
 	void *dst = NULL, *pdst;
@@ -1028,9 +1025,6 @@ free_header:
 	free(header);
 
 	return ret;
-#else
-	return -EINVAL;
-#endif
 }
 
 void rockchip_show_fbbase(ulong fbbase)

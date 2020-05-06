@@ -4,6 +4,7 @@
  * SPDX-License-Identifier:     GPL-2.0+
  */
 #include <common.h>
+#include <command.h>
 #include <adc.h>
 #include <android_bootloader.h>
 #include <android_image.h>
@@ -22,6 +23,42 @@
 #include <asm/arch/resource_img.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+int load_resource_file(void *buf, const char *name,
+				int offset, int len)
+{
+	char cmd[128];
+	unsigned long filesize;
+	char *p;
+	u32 dev_no;
+
+	p = buf;
+
+	env_set("filesize", "0");
+
+	dev_no = env_get_ulong("bootdev", 10, 0);
+
+	sprintf(cmd, "fatload mmc %d:1 0x%p %s 0x%x 0x%x", dev_no, (void *)p, name, len, offset);
+	run_command(cmd, 0);
+
+	filesize = env_get_ulong("filesize", 16, 0);
+	if (filesize < len) {
+		printf("load_resource_file: no %s or empty file\n", name);
+		return -ENOENT;
+	}
+
+	return len;
+}
+
+#ifndef CONFIG_ROCKCHIP_RESOURCE_IMAGE
+
+int rockchip_read_resource_file(void *buf, const char *name,
+				int offset, int len)
+{
+	return load_resource_file(buf, name, offset, len);
+}
+
+#else
 
 #define PART_RESOURCE			"resource"
 #define RESOURCE_MAGIC			"RSCE"
@@ -558,6 +595,10 @@ int rockchip_read_resource_file(void *buf, const char *name,
 		return -ENODEV;
 	}
 
+	ret = load_resource_file(buf, name, offset, len);
+	if (ret > 0)
+		return ret;
+
 	file = get_file_info(NULL, name);
 	if (!file) {
 		printf("Can't find file:%s\n", name);
@@ -868,3 +909,6 @@ int rockchip_read_resource_dtb(void *fdt_addr, char **hash, int *hash_size)
 
 	return 0;
 }
+
+#endif
+
