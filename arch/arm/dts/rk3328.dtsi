@@ -342,31 +342,6 @@
 		};
 	};
 
-	efuse: efuse@ff260000 {
-		compatible = "rockchip,rk3328-efuse";
-		reg = <0x0 0xff260000 0x0 0x50>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		clocks = <&cru SCLK_EFUSE>;
-		clock-names = "pclk_efuse";
-		rockchip,efuse-size = <0x20>;
-
-		/* Data cells */
-		efuse_id: id@7 {
-			reg = <0x07 0x10>;
-		};
-		cpu_leakage: cpu-leakage@17 {
-			reg = <0x17 0x1>;
-		};
-		logic_leakage: logic-leakage@19 {
-			reg = <0x19 0x1>;
-		};
-		efuse_cpu_version: cpu-version@1a {
-			reg = <0x1a 0x1>;
-			bits = <3 3>;
-		};
-	};
-
 	saradc: saradc@ff280000 {
 		compatible = "rockchip,rk3328-saradc", "rockchip,saradc";
 		reg = <0x0 0xff280000 0x0 0x100>;
@@ -491,17 +466,6 @@
 		};
 	};
 
-	emmc: rksdmmc@ff520000 {
-		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
-		reg = <0x0 0xff520000 0x0 0x4000>;
-		max-frequency = <150000000>;
-		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
-		clock-names = "biu", "ciu";
-		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
-	};
-
 	sdmmc: rksdmmc@ff500000 {
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff500000 0x0 0x4000>;
@@ -525,22 +489,14 @@
 		status = "disabled";
 	};
 
-	gmac2io: ethernet@ff540000 {
-		compatible = "rockchip,rk3328-gmac";
-		reg = <0x0 0xff540000 0x0 0x10000>;
-		rockchip,grf = <&grf>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq";
-		clocks = <&cru SCLK_MAC2IO>, <&cru SCLK_MAC2IO_RX>,
-			 <&cru SCLK_MAC2IO_TX>, <&cru SCLK_MAC2IO_REF>,
-			 <&cru SCLK_MAC2IO_REFOUT>, <&cru ACLK_MAC2IO>,
-			 <&cru PCLK_MAC2IO>;
-		clock-names = "stmmaceth", "mac_clk_rx",
-			      "mac_clk_tx", "clk_mac_ref",
-			      "clk_mac_refout", "aclk_mac",
-			      "pclk_mac";
-		resets = <&cru SRST_GMAC2IO_A>;
-		reset-names = "stmmaceth";
+	emmc: rksdmmc@ff520000 {
+		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xff520000 0x0 0x4000>;
+		max-frequency = <150000000>;
+		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
