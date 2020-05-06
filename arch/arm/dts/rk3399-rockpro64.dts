@@ -9,7 +9,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3399.dtsi"
-#include "rk3399-sdram-ddr3-1600.dtsi"
+#include "rk3399-sdram-lpddr4-100.dtsi"
 #include "rk3399-u-boot.dtsi"
 
 / {
@@ -274,11 +274,10 @@
 	downdifferential = <20>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       577      200000
-		578     1701     300000
-		1702    99999    400000
+		0       577      416000
+		578     99999    856000
 	>;
-	auto-min-freq = <800000>;
+	auto-min-freq = <416000>;
 };
 
 &emmc_phy {
