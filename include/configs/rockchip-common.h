@@ -20,7 +20,11 @@
 
 #define CONFIG_SYS_NS16550_MEM32
 
+#ifdef CONFIG_SPL_BUILD
+#define CONFIG_NR_DRAM_BANKS		2
+#else
 #define CONFIG_NR_DRAM_BANKS		12
+#endif
 
 #ifndef CONFIG_SPL_BUILD
 #include <config_distro_defaults.h>
@@ -136,13 +140,9 @@
 		"setenv devtype spinor; setenv devnum 1;" \
 	"fi; \0"
 
-#ifdef CONFIG_AVB_VBMETA_PUBLIC_KEY_VALIDATE
-#ifndef CONFIG_ANDROID_AB
-#define RKIMG_BOOTCOMMAND \
-	"boot_android ${devtype} ${devnum};" \
-	"echo AVB boot failed and enter rockusb or fastboot!;" \
-	"rockusb 0 ${devtype} ${devnum};" \
-	"fastboot usb 0;"
+#if defined(CONFIG_AVB_VBMETA_PUBLIC_KEY_VALIDATE)
+#define RKIMG_BOOTCOMMAND			\
+	"boot_android ${devtype} ${devnum};"
 #else
 /*
  * Update images a/b and active slot with fastboot
@@ -160,7 +160,8 @@
 	"boot_android ${devtype} ${devnum};" \
 	"bootrkp;"
 #endif
-#endif
+
+#endif /* CONFIG_SPL_BUILD */
 
 #define CONFIG_ENV_SECT_SIZE SZ_4K
 
