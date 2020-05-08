@@ -607,12 +607,6 @@ int rockchip_read_resource_file(void *buf, const char *name,
 	int blks;
 	ulong src;
 
-	file = get_file_info(name);
-	if (!file) {
-		printf("No file: %s\n", name);
-		return -ENOENT;
-	}
-
 	dev_desc = rockchip_get_bootdev();
 	if (!dev_desc) {
 		printf("No dev_desc!\n");
@@ -623,9 +617,9 @@ int rockchip_read_resource_file(void *buf, const char *name,
 	if (ret > 0)
 		return ret;
 
-	file = get_file_info(NULL, name);
+	file = get_file_info(name);
 	if (!file) {
-		printf("Can't find file:%s\n", name);
+		printf("No file: %s\n", name);
 		return -ENOENT;
 	}
 
